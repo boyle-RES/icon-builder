@@ -427,6 +427,23 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         </div>
       </div>
 
+      <h3>Beat bars</h3>
+      <div class="opt">
+        <span class="name">Macrobeats</span>
+        <div class="colorline">
+          <label class="instr" style="font-weight:400">Emphasis <input type="color" name="macroStrong" aria-label="Macrobeat emphasis color"></label>
+          <label class="instr" style="font-weight:400">Standard <input type="color" name="macroWeak" aria-label="Macrobeat standard color"></label>
+        </div>
+      </div>
+      <div class="opt">
+        <span class="name">Microbeats</span>
+        <div class="colorline">
+          <label class="instr" style="font-weight:400">Emphasis <input type="color" name="microStrong" aria-label="Microbeat emphasis color"></label>
+          <label class="instr" style="font-weight:400">Standard <input type="color" name="microWeak" aria-label="Microbeat standard color"></label>
+        </div>
+      </div>
+      <p class="help" style="margin:8px 0 0">Emphasis colors the first macrobeat of each measure and the first microbeat of each macrobeat. <button class="btn small" id="resetBeatColors" type="button" style="margin-left:6px">Use the template’s grays</button></p>
+
       <h3>Measure groups</h3>
       <div class="opt">
         <label class="name" for="groupMeasures">Group every</label>
@@ -987,15 +1004,18 @@ function buildScene(model, o, forScreen){
 
   if (macroY !== null){
     const md = (a, n) => ((a % n) + n) % n;
-    const bar = (t0, t1, yy, strong) => {
+    // Emphasis = the first macrobeat of each measure, and the first microbeat of each macrobeat.
+    const macroS = o.macroStrong || BAR_STRONG, macroW = o.macroWeak || BAR_WEAK;
+    const microS = o.microStrong || BAR_STRONG, microW = o.microWeak || BAR_WEAK;
+    const bar = (t0, t1, yy, fill) => {
       const a = Math.max(0, t0), x = xStart(a), w = xEnd(t1) - x;   // a pickup's partial beat starts at the left edge
-      if (w > 0) items.push({ t: "rect", x, y: yy, w, h: 12 * S, fill: strong ? BAR_STRONG : BAR_WEAK });
+      if (w > 0) items.push({ t: "rect", x, y: yy, w, h: 12 * S, fill });
     };
     if (microY !== null){
       const M = meter.L / meter.q;
-      for (let k = -Math.ceil(pickup / M - 1e-9); pickup + k * M < span - 1e-9; k++) bar(pickup + k * M, pickup + (k + 1) * M, microY, md(k, meter.q) === 0);
+      for (let k = -Math.ceil(pickup / M - 1e-9); pickup + k * M < span - 1e-9; k++) bar(pickup + k * M, pickup + (k + 1) * M, microY, md(k, meter.q) === 0 ? microS : microW);
     }
-    for (let j = -Math.ceil(pickup / meter.L - 1e-9); pickup + j * meter.L < span - 1e-9; j++) bar(pickup + j * meter.L, pickup + (j + 1) * meter.L, macroY, md(j, meter.per) === 0);
+    for (let j = -Math.ceil(pickup / meter.L - 1e-9); pickup + j * meter.L < span - 1e-9; j++) bar(pickup + j * meter.L, pickup + (j + 1) * meter.L, macroY, md(j, meter.per) === 0 ? macroS : macroW);
   }
 
   const play = { left, U, xAt: xStart, w: Math.max(3, 4 * S), y1: top - half, y2: playBottom };
@@ -1152,7 +1172,7 @@ const MELODY_DEFAULTS = {
 const LOOK_DEFAULTS = {
   showIcons: true, iconOpacity: 100, iconColor: "dur", iconInk: "#212121", restStyle: "outline", iconOutline: false,
   showLine: false, shape: "steps", conn: "thin", lineColor: "one", lineInk: "#212121", thick: 6, lineRests: "gap", lineAnchor: "bottom", lineStyle: "solid",
-  pitchShow: "on", size: 2, vstretch: 1, lyricsPos: "follow", showLyrics: true, lyricScale: 100, lyricFont: "lexend", groupMeasures: "1", dividers: false, frames: false, frameWidth: 2, framePad: 12, dividerReach: 100, groupGap: 0, rangeMode: "fit", rangeLow: "", rangeHigh: "", guides: "off", names: false, grid: false, transparent: false
+  pitchShow: "on", size: 2, vstretch: 1, lyricsPos: "follow", showLyrics: true, lyricScale: 100, lyricFont: "lexend", groupMeasures: "1", dividers: false, frames: false, macroStrong: "#6B6B6B", macroWeak: "#C8C8C8", microStrong: "#6B6B6B", microWeak: "#C8C8C8", frameWidth: 2, framePad: 12, dividerReach: 100, groupGap: 0, rangeMode: "fit", rangeLow: "", rangeHigh: "", guides: "off", names: false, grid: false, transparent: false
 };
 const PLAY_DEFAULTS = { tempo: 96, loop: false, countBeats: "0", instrument: "piano" };
 const MELODY_KEYS = ["rhythm", "pitches", "lyrics", "meter", "pickup", "pitchShow", "tempo"];
@@ -1848,6 +1868,13 @@ document.addEventListener("keydown", e => {
   if (!document.body.classList.contains("present")) return;
   if (e.key === "Escape") setPresent(false);
   else if (e.key === " " && !e.target.closest("button")){ e.preventDefault(); togglePlay(); }
+});
+
+// ---- Beat bar colors ----
+$("resetBeatColors").addEventListener("click", () => {
+  Object.assign(st, { macroStrong: LOOK_DEFAULTS.macroStrong, macroWeak: LOOK_DEFAULTS.macroWeak, microStrong: LOOK_DEFAULTS.microStrong, microWeak: LOOK_DEFAULTS.microWeak });
+  writeControls(); save(); render();
+  note("Beat bars are back to the template\u2019s grays.");
 });
 
 // ---- Pitch range for the whole song ----
