@@ -204,6 +204,7 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
       <button class="btn solid play" id="play" type="button">Play</button>
       <label class="tempo" for="tempo" title="Beats per minute. The beat is the meter’s macrobeat, or a long when there’s no meter.">Tempo <input type="range" id="tempo" name="tempo" min="40" max="200" step="2"><output for="tempo" id="tempoOut"></output></label>
       <label class="check"><input type="checkbox" name="loop"> Loop</label>
+      <label class="check" title="Scroll the drawing to keep the playhead in view"><input type="checkbox" name="follow"> Follow</label>
       <label class="instr" for="countBeats">Count-in
         <select id="countBeats" name="countBeats">
           <option value="0">Off</option>
@@ -1174,7 +1175,7 @@ const LOOK_DEFAULTS = {
   showLine: false, shape: "steps", conn: "thin", lineColor: "one", lineInk: "#212121", thick: 6, lineRests: "gap", lineAnchor: "bottom", lineStyle: "solid",
   pitchShow: "on", size: 2, vstretch: 1, lyricsPos: "follow", showLyrics: true, lyricScale: 100, lyricFont: "lexend", groupMeasures: "1", dividers: false, frames: false, macroStrong: "#6B6B6B", macroWeak: "#C8C8C8", microStrong: "#6B6B6B", microWeak: "#C8C8C8", frameWidth: 2, framePad: 12, dividerReach: 100, groupGap: 0, rangeMode: "fit", rangeLow: "", rangeHigh: "", guides: "off", names: false, grid: false, transparent: false
 };
-const PLAY_DEFAULTS = { tempo: 96, loop: false, countBeats: "0", instrument: "piano" };
+const PLAY_DEFAULTS = { tempo: 96, loop: false, follow: true, countBeats: "0", instrument: "piano" };
 const MELODY_KEYS = ["rhythm", "pitches", "lyrics", "meter", "pickup", "pitchShow", "tempo"];
 const STORE_KEY = "rhythm-icon-maker:v2";
 
@@ -1759,7 +1760,23 @@ function startPlayback(){
   player.scheduled = -1; player.endPass = null;
   schedulePass(0);
   player.playing = true; setPlayButtons();
+  if (st.follow && !document.body.classList.contains("present")){
+    // Bring the drawing on screen if the page is scrolled away from it, and start at its left edge.
+    const stage = $("stage"), r = stage.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) stage.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    stage.scrollLeft = 0;
+  }
   player.raf = requestAnimationFrame(tick);
+}
+// Follow: keep the playhead about a third of the way across the drawing's window, so the notes
+// coming up stay in view. (Present mode already fits the whole drawing on screen.)
+function followPlayhead(ph){
+  if (document.body.classList.contains("present")) return;
+  const stage = $("stage");
+  if (stage.scrollWidth <= stage.clientWidth + 1) return;
+  const pr = ph.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+  const target = stage.scrollLeft + (pr.left - sr.left) - stage.clientWidth * 0.35;
+  stage.scrollLeft = Math.max(0, Math.min(stage.scrollWidth - stage.clientWidth, target));
 }
 function tick(){
   if (!player.playing) return;
@@ -1780,6 +1797,7 @@ function tick(){
       const g = lastScene.play;
       ph.setAttribute("x", r2((g.xAt ? g.xAt(t) : g.left + t * g.U) - g.w / 2));
       ph.setAttribute("visibility", "visible");
+      if (st.follow) followPlayhead(ph);
     }
   }
   player.raf = requestAnimationFrame(tick);
