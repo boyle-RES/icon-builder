@@ -182,13 +182,113 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
 @media (prefers-reduced-motion: no-preference){
   .btn,.seg label,.pats .load,.pats .del{transition:background-color .12s, border-color .12s, color .12s}
 }
+
+/* ---- One window: the drawing on top, one group of controls below it ---- */
+:root{--flag:#E08A00}
+.wrap{max-width:1500px; padding:16px 18px 40px}
+.top{display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px}
+.top h1{font-size:1.25rem; margin:0; letter-spacing:0}
+.top .status{flex:1 1 120px; font-size:.875rem; line-height:1.3}
+.top .actions{margin-left:auto}
+/* Short confirmations ("Copied", "Saved") float over the bottom of the window, so nothing shifts */
+.notice{
+  position:fixed; z-index:20; left:50%; transform:translateX(-50%); bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  max-width:min(92vw,40rem); min-height:0; flex:none; text-align:center; font-size:.9375rem; line-height:1.35;
+  padding:8px 14px; border-radius:3px; background:var(--sel-bg); color:var(--sel-ink);
+  box-shadow:0 6px 18px -8px rgba(20,28,36,.6);
+}
+.notice:empty{display:none}
+.stage{margin-top:12px; max-height:56vh}
+.stage-bar{margin-top:10px}
+.player{gap:8px 14px}
+.tempo input{width:120px}
+
+.dock{margin-top:12px}
+.tabs{display:flex; flex-wrap:wrap; gap:0 2px; border-bottom:2px solid var(--ink)}
+.tab{
+  font:inherit; font-weight:700; font-size:.9375rem; line-height:1.3; padding:7px 11px;
+  border:0; border-radius:3px 3px 0 0; background:transparent; color:var(--ink); cursor:pointer;
+}
+.tab:hover{background:var(--rule-soft)}
+.tab[aria-selected="true"]{background:var(--sel-bg); color:var(--sel-ink)}
+.tab:focus-visible{outline-offset:-3px}
+.tab.fold{margin-left:auto; font-weight:400; color:var(--muted)}
+.dock.closed .pane{display:none}
+.tab.flag::after{content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--flag); margin-left:7px; vertical-align:1px}
+.pane{padding:14px 2px 6px; position:relative}
+.seg{position:relative}
+
+/* Groups of look options sit side by side */
+.pane.groups{display:grid; grid-template-columns:repeat(auto-fit,minmax(330px,1fr)); gap:4px 40px; align-items:start}
+.group > h3{font-size:1rem; margin:0 0 2px}
+.group > .help{margin-top:8px}
+.dock .opt{grid-template-columns:10.5rem minmax(0,1fr); gap:4px 12px; padding:6px 0}
+.dock .opt.stack{grid-template-columns:minmax(0,1fr)}
+.dock .opt.stack .seg{justify-self:start}
+.check input{flex:none}
+.dock .layer{padding:4px 0 8px}
+.dock .slider input{max-width:none}
+
+/* Saved patterns: your own list beside the Google Sheets list */
+.pane-saved{display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:18px 44px; align-items:start}
+.dock .box{border-top:0; padding-top:0; margin:0}
+
+/* Pattern: labels beside the boxes, and the typing help for the box you're in shown at the side */
+.tipbox{display:none}
+.dock .opt.beat-opt{grid-template-columns:7rem minmax(0,1fr)}
+.pane-pattern .below .msgs{margin:0 0 8px}
+.name .sub{font-weight:400; color:var(--muted); margin-left:4px}
+.pane-pattern .cell.meter{width:4.75rem}
+.pane-pattern .inline{gap:8px 14px}
+.pane-pattern .inline .cell.range{width:3.5rem}
+.pane-pattern #rangeRow{gap:8px 10px}
+.pane-pattern .checks{gap:8px}
+.pane-pattern .checks .seg{justify-self:start}
+.pane-pattern .field{margin-bottom:12px}
+@media (min-width:880px){
+  .pane-pattern{display:grid; grid-template-columns:minmax(0,1fr) minmax(360px,40%); grid-template-areas:"fields side" "below side"; gap:0 32px; align-items:start}
+  .pane-pattern .fields{grid-area:fields}
+  .pane-pattern .side{grid-area:side}
+  .pane-pattern .below{grid-area:below; margin-top:2px}
+  .pane-pattern .tipbox{font-size:.8125rem; line-height:1.4}
+  .pane-pattern .side .field{grid-template-columns:5.75rem minmax(0,1fr)}
+  .pane-pattern .field .opt-tag{display:none}
+  .pane-pattern .field-head .btn.small{white-space:nowrap; padding:4px 8px; font-size:.8125rem}
+  .pane-pattern .inline .cell.range#pickup{width:3rem}
+  .pane-pattern .field{display:grid; grid-template-columns:8.25rem minmax(0,1fr); gap:4px 14px; align-items:start; margin-bottom:8px}
+  .pane-pattern .field > label, .pane-pattern .field > .name, .pane-pattern .field-head{margin:0; padding-top:7px}
+  .pane-pattern .field-head{flex-direction:column; align-items:flex-start; gap:6px}
+  .pane-pattern .field .help{display:none}
+  .pane-pattern .msgs{margin:0 0 10px}
+  .pane-pattern .msgs:empty{display:none}
+  .pane-pattern textarea.cell{field-sizing:content; min-height:42px; max-height:8.6em}
+  .tipbox{display:block; font-size:.875rem; color:var(--muted); padding-left:14px; border-left:3px solid var(--rule); }
+  .tipbox p{margin:0 0 8px}
+  .tipbox b{color:var(--ink)}
+}
+
+/* On a screen with room, nothing scrolls off: the drawing takes whatever height the controls leave */
+@media (min-width:880px) and (min-height:540px){
+  html,body{height:100%}
+  .wrap{min-height:100%; display:flex; flex-direction:column; padding:12px 22px 10px}
+  .stage{flex:1 1 0; min-height:110px; max-height:none}
+  .top,.stage-bar,.dock{flex:0 0 auto}
+  .pane{height:clamp(216px,38vh,400px); overflow:auto; padding-right:8px}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
+  <header class="top">
     <h1>Rhythm icon maker 2.0</h1>
-    <p class="lede">Type rhythm, pitch names and lyrics the same way as the Google Sheets template. Show the icons, a contour line, or both, play the pattern back, and save it as an image for a whiteboard file.</p>
+    <p class="status" id="status"></p>
+    <div class="actions">
+      <button class="btn" id="savePng" type="button">Save PNG</button>
+      <button class="btn" id="saveSvg" type="button">Save SVG</button>
+      <button class="btn" id="copyImg" type="button">Copy image</button>
+      <button class="btn" id="present" type="button">Present</button>
+      <button class="btn" id="resetAll" type="button">Reset</button>
+    </div>
   </header>
 
   <section class="stage" id="stage" aria-label="Icon drawing">
@@ -243,59 +343,112 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         </select>
       </label>
     </div>
-    <div class="actions">
-      <button class="btn" id="savePng" type="button">Save PNG</button>
-      <button class="btn" id="saveSvg" type="button">Save SVG</button>
-      <button class="btn" id="copyImg" type="button">Copy image</button>
-      <button class="btn" id="present" type="button">Present</button>
-      <button class="btn" id="resetAll" type="button">Reset</button>
+  </div>
+
+  <div class="dock">
+    <div class="tabs" role="tablist" aria-label="Controls">
+      <button class="tab" type="button" role="tab" id="tab-pattern" aria-controls="pane-pattern" aria-selected="true" tabindex="0">Pattern</button>
+      <button class="tab" type="button" role="tab" id="tab-saved" aria-controls="pane-saved" aria-selected="false" tabindex="-1">Saved patterns</button>
+      <button class="tab" type="button" role="tab" id="tab-icons" aria-controls="pane-icons" aria-selected="false" tabindex="-1">Icons</button>
+      <button class="tab" type="button" role="tab" id="tab-line" aria-controls="pane-line" aria-selected="false" tabindex="-1">Contour line</button>
+      <button class="tab" type="button" role="tab" id="tab-slurs" aria-controls="pane-slurs" aria-selected="false" tabindex="-1">Slurs and beats</button>
+      <button class="tab" type="button" role="tab" id="tab-measures" aria-controls="pane-measures" aria-selected="false" tabindex="-1">Measures and lines</button>
+      <button class="tab" type="button" role="tab" id="tab-layout" aria-controls="pane-layout" aria-selected="false" tabindex="-1">Layout and lyrics</button>
+      <button class="tab fold" type="button" id="foldDock" aria-expanded="true">Hide controls</button>
     </div>
-  </div>
-  <div class="under">
-    <p class="status" id="status"></p>
-    <p class="notice" id="notice" role="status" aria-live="polite"></p>
-  </div>
-
-  <div class="panels">
-    <section class="panel" aria-labelledby="melodyH">
-      <h2 id="melodyH">Pattern</h2>
-
+    <section class="pane pane-pattern" id="pane-pattern" role="tabpanel" aria-labelledby="tab-pattern">
+      <div class="fields">
       <div class="field">
         <label for="rhythm">Rhythm</label>
         <textarea class="cell rhythm" id="rhythm" name="rhythm" rows="2" spellcheck="false" autocomplete="off"></textarea>
-        <p class="help">Shorts per sound: 0.5 = sixteenth, 1 = short, 1.5 = dotted eighth, 2 = long, 3 = dotted quarter, 4 = lo-ong, 8 = whole. Type R and a length for a rest, such as R1. Put ~ between two sounds to slur or tie them, such as 8~ 8. Type // where a new line of icons should start. Bar lines (|) are skipped.</p>
+        <p class="help">Shorts per sound: 0.5 = sixteenth, 1 = short, 1.5 = dotted eighth, 2 = long, 3 = dotted quarter, 4 = lo-ong, 8 = whole. Type R and a length for a rest, such as R1. Put ~ between two sounds to join them, such as 8~ 8: a tie when the pitch stays the same, a slur when it changes. Type // where a new line of icons should start. Bar lines (|) are skipped.</p>
       </div>
 
       <div class="field">
-        <label for="pitches">Pitch names <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-        <textarea class="cell pitch" id="pitches" name="pitches" rows="2" spellcheck="false" autocomplete="off"></textarea>
-        <p class="help">C, F#, Bb and so on, one per sound. Each note goes in the octave closest to the one before it; add an octave number (G3, C5) for a bigger leap. A dash (-) repeats the previous pitch. Leave this empty for a rhythm on one level.</p>
+        <label for="pitches">Pitches <span class="opt-tag" style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <textarea class="cell pitch" id="pitches" name="pitches" placeholder="Optional: letter names or numbers" rows="2" spellcheck="false" autocomplete="off"></textarea>
+        <p class="help">One per sound: letter names (C, F#, Bb) or numbers in the key (1 = the key’s first note). A letter goes to the octave nearest the note before it; add an octave number for a bigger leap (G3). Numbers stay in the key’s home octave; add + or - for the octave above or below (1+, 5-), and # or b to raise or lower one (#4, b7). A dash (-) repeats the pitch. Leave this empty for a rhythm on one level.</p>
       </div>
 
       <div class="field">
         <div class="field-head">
-          <label for="lyrics">Lyrics <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+          <label for="lyrics">Lyrics <span class="opt-tag" style="font-weight:400;color:var(--muted)">(optional)</span></label>
           <div class="mini">
             <button class="btn small" id="splitSyl" type="button">Split into syllables</button>
             <button class="btn small" id="undoSyl" type="button" hidden>Undo</button>
           </div>
         </div>
-        <textarea class="cell lyric" id="lyrics" name="lyrics" rows="2" spellcheck="false" autocomplete="off"></textarea>
+        <textarea class="cell lyric" id="lyrics" name="lyrics" placeholder="Optional" rows="2" spellcheck="false" autocomplete="off"></textarea>
         <p class="help">One syllable per sound, such as Twin- kle. Or type whole words and choose Split into syllables, then fix any breaks by hand. Type _ to hold a syllable over the next sound, or a dash (-) to leave a sound without one.</p>
       </div>
-
+      </div>
+      <div class="side">
       <div class="field">
-        <label for="meter">Meter <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+        <label for="meter">Meter <span class="opt-tag" style="font-weight:400;color:var(--muted)">(optional)</span></label>
         <div class="inline">
-          <input class="cell" id="meter" name="meter" type="text" spellcheck="false" autocomplete="off" placeholder="3/4">
+          <input class="cell meter" id="meter" name="meter" type="text" spellcheck="false" autocomplete="off" placeholder="3/4">
           <label class="check"><input type="checkbox" name="micro"> Microbeats</label>
           <label class="instr" for="pickup" style="font-weight:400">Pickup <input class="cell range" id="pickup" name="pickup" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" placeholder="0"> shorts</label>
         </div>
         <p class="help">A time signature such as 2/4 or 6/8 adds beat bars under the icons and sets what Tempo counts. Leave it blank for none. Pickup is how many shorts come before the first downbeat, such as 1 for an eighth-note pickup or 2 for a quarter-note pickup.</p>
       </div>
 
-      <ul class="msgs" id="msgs" aria-live="polite"></ul>
+      <div class="field">
+        <label for="keyTonic">Key</label>
+        <div class="inline">
+          <select class="pick" id="keyTonic" name="keyTonic">
+            <option value="C">C</option>
+            <option value="C#">C♯</option>
+            <option value="Db">D♭</option>
+            <option value="D">D</option>
+            <option value="D#">D♯</option>
+            <option value="Eb">E♭</option>
+            <option value="E">E</option>
+            <option value="F">F</option>
+            <option value="F#">F♯</option>
+            <option value="Gb">G♭</option>
+            <option value="G">G</option>
+            <option value="G#">G♯</option>
+            <option value="Ab">A♭</option>
+            <option value="A">A</option>
+            <option value="A#">A♯</option>
+            <option value="Bb">B♭</option>
+            <option value="B">B</option>
+          </select>
+          <select class="pick" id="keyMode" name="keyMode" aria-label="Scale">
+            <option value="major">Major</option>
+            <option value="minor">Minor</option>
+            <option value="dorian">Dorian</option>
+            <option value="phrygian">Phrygian</option>
+            <option value="lydian">Lydian</option>
+            <option value="mixolydian">Mixolydian</option>
+          </select>
+        </div>
+        <p class="help">The key for numbers in Pitches. 1 is the key’s first note, between middle C and the B above it, and the other numbers count up the scale from there (8 is the 1 above). Letter names on the notes follow the key, so 4 in F major shows as B♭. Letter names you type aren’t changed by the key.</p>
+      </div>
 
+      <div class="field">
+        <span class="name" id="rangeL">Pitch range</span>
+        <div class="checks">
+          <div class="seg" role="radiogroup" aria-labelledby="rangeL">
+            <input type="radio" name="rangeMode" id="rm-fit" value="fit"><label for="rm-fit">Fit each pattern</label>
+            <input type="radio" name="rangeMode" id="rm-fixed" value="fixed"><label for="rm-fixed">Same for the whole song</label>
+          </div>
+          <div class="inline" id="rangeRow">
+            <label class="instr" for="rangeLow" style="font-weight:400">Low <input class="cell range" id="rangeLow" name="rangeLow" type="text" spellcheck="false" autocomplete="off" placeholder="C4"></label>
+            <label class="instr" for="rangeHigh" style="font-weight:400">High <input class="cell range" id="rangeHigh" name="rangeHigh" type="text" spellcheck="false" autocomplete="off" placeholder="A4"></label>
+            <button class="btn small" id="rangeInclude" type="button">Include this pattern</button>
+          </div>
+        </div>
+        <p class="help">With “Same for the whole song,” every pattern is drawn on the same pitch range, so frames and icon heights match from pattern to pattern. Load each of the song’s patterns and choose Include this pattern; the range grows to cover them all.</p>
+      </div>
+      </div>
+      <div class="below">
+      <ul class="msgs" id="msgs" aria-live="polite"></ul>
+        <aside class="tipbox" id="tipBox" aria-hidden="true"><p>Type rhythm, pitches and lyrics the same way as the Google Sheets template. Show the icons, a contour line, or both, play the pattern back, and save it as an image for a whiteboard file.</p><p>You can also select a pattern’s yellow and blue rows in the sheet (plus the green lyrics row, if it has one), copy them, and paste into any box here.</p></aside>
+      </div>
+    </section>
+    <section class="pane pane-saved" id="pane-saved" role="tabpanel" aria-labelledby="tab-saved" hidden>
       <div class="box">
         <h3>My patterns</h3>
         <p class="help" style="margin-top:0" id="libHelp">Saved to your account, so they’re here on any computer where you open this page.</p>
@@ -327,20 +480,15 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         <p class="msg" id="sheetMsg" role="status" aria-live="polite"></p>
         <ul class="pats" id="pats"></ul>
       </div>
-
-      <p class="tip">You can also select a pattern’s yellow and blue rows in the sheet (plus the green lyrics row, if it has one), copy them, and paste into any box here.</p>
     </section>
-
-    <section class="panel" aria-labelledby="lookH">
-      <h2 id="lookH">Look</h2>
-
-      <h3 class="first">Icons</h3>
+    <section class="pane groups" id="pane-icons" role="tabpanel" aria-labelledby="tab-icons" hidden>
+      <div class="group">
       <div class="layer"><label class="check big"><input type="checkbox" name="showIcons"> Show icons</label></div>
       <div class="opt icon-opt">
         <label class="name" for="iconOpacity">Opacity</label>
         <div class="slider"><input type="range" id="iconOpacity" name="iconOpacity" min="0" max="100" step="5"><output for="iconOpacity" id="iconOpacityOut"></output></div>
       </div>
-      <div class="opt icon-opt">
+      <div class="opt stack icon-opt">
         <span class="name" id="iconColorL">Color</span>
         <div>
           <div class="colorline">
@@ -355,7 +503,9 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
           </div>
         </div>
       </div>
-      <div class="opt icon-opt">
+      </div>
+      <div class="group">
+      <div class="opt stack icon-opt">
         <span class="name" id="restL">Rest boxes</span>
         <div class="seg" role="radiogroup" aria-labelledby="restL">
           <input type="radio" name="restStyle" id="rs-outline" value="outline"><label for="rs-outline">Outline</label>
@@ -368,10 +518,12 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         <span class="name">Edges</span>
         <label class="check"><input type="checkbox" name="iconOutline"> Outline every icon (good for coloring pages)</label>
       </div>
-
-      <h3>Contour line</h3>
+      </div>
+    </section>
+    <section class="pane groups" id="pane-line" role="tabpanel" aria-labelledby="tab-line" hidden>
+      <div class="group">
       <div class="layer"><label class="check big"><input type="checkbox" name="showLine"> Show the line</label></div>
-      <div class="opt line-opt">
+      <div class="opt stack line-opt">
         <span class="name" id="shapeL">Shape</span>
         <div class="seg" role="radiogroup" aria-labelledby="shapeL">
           <input type="radio" name="shape" id="sh-steps" value="steps"><label for="sh-steps">Steps</label>
@@ -379,7 +531,7 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
           <input type="radio" name="shape" id="sh-dots" value="dots"><label for="sh-dots">Dots</label>
         </div>
       </div>
-      <div class="opt line-opt">
+      <div class="opt stack line-opt">
         <span class="name" id="lineStyleL">Line style</span>
         <div class="seg" role="radiogroup" aria-labelledby="lineStyleL">
           <input type="radio" name="lineStyle" id="ls-solid" value="solid"><label for="ls-solid">Solid</label>
@@ -387,21 +539,32 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
           <input type="radio" name="lineStyle" id="ls-dotted" value="dotted"><label for="ls-dotted">Dotted</label>
         </div>
       </div>
-      <div class="opt line-opt" id="anchorRow">
+      </div>
+      <div class="group">
+      <div class="opt stack line-opt" id="anchorRow">
         <span class="name" id="anchorL">Runs along</span>
         <div class="seg" role="radiogroup" aria-labelledby="anchorL">
           <input type="radio" name="lineAnchor" id="la-bottom" value="bottom"><label for="la-bottom">Bottom of each icon</label>
           <input type="radio" name="lineAnchor" id="la-center" value="center"><label for="la-center">Middle of each icon</label>
         </div>
       </div>
-      <div class="opt line-opt" id="connRow">
+      <div class="opt stack line-opt" id="connRow">
         <span class="name" id="connL">Between notes</span>
         <div class="seg" role="radiogroup" aria-labelledby="connL">
           <input type="radio" name="conn" id="cn-thin" value="thin"><label for="cn-thin">Thin</label>
           <input type="radio" name="conn" id="cn-full" value="full"><label for="cn-full">Full weight</label>
         </div>
       </div>
-      <div class="opt line-opt">
+      <div class="opt stack line-opt">
+        <span class="name" id="lineRestL">At rests</span>
+        <div class="seg" role="radiogroup" aria-labelledby="lineRestL">
+          <input type="radio" name="lineRests" id="lr-gap" value="gap"><label for="lr-gap">Break the line</label>
+          <input type="radio" name="lineRests" id="lr-dash" value="dash"><label for="lr-dash">Dashed line</label>
+        </div>
+      </div>
+      </div>
+      <div class="group">
+      <div class="opt stack line-opt">
         <span class="name" id="lineColorL">Color</span>
         <div>
           <div class="colorline">
@@ -420,39 +583,47 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         <label class="name" for="thick">Thickness</label>
         <div class="slider"><input type="range" id="thick" name="thick" min="2" max="16" step="1"><output for="thick" id="thickOut"></output></div>
       </div>
-      <div class="opt line-opt">
-        <span class="name" id="lineRestL">At rests</span>
-        <div class="seg" role="radiogroup" aria-labelledby="lineRestL">
-          <input type="radio" name="lineRests" id="lr-gap" value="gap"><label for="lr-gap">Break the line</label>
-          <input type="radio" name="lineRests" id="lr-dash" value="dash"><label for="lr-dash">Dashed line</label>
+      </div>
+    </section>
+    <section class="pane groups" id="pane-slurs" role="tabpanel" aria-labelledby="tab-slurs" hidden>
+      <div class="group">
+        <h3>Slurs and ties</h3>
+      <div class="layer"><label class="check big"><input type="checkbox" name="showSlurs"> Show slurs and ties</label></div>
+      <div class="opt stack slur-opt">
+        <span class="name" id="tieStyleL">Ties <span class="sub">same pitch</span></span>
+        <div class="seg" role="radiogroup" aria-labelledby="tieStyleL">
+          <input type="radio" name="tieStyle" id="ts-above" value="above"><label for="ts-above">Arc above</label>
+          <input type="radio" name="tieStyle" id="ts-below" value="below"><label for="ts-below">Arc below</label>
+          <input type="radio" name="tieStyle" id="ts-join" value="join"><label for="ts-join">Joined icons</label>
         </div>
       </div>
-
-      <h3>Slurs and ties</h3>
-      <div class="layer"><label class="check big"><input type="checkbox" name="showSlurs"> Show slurs and ties</label></div>
-      <div class="opt slur-opt">
-        <span class="name" id="slurStyleL">Style</span>
+      <div class="opt stack slur-opt">
+        <span class="name" id="slurStyleL">Slurs <span class="sub">the pitch changes</span></span>
         <div class="seg" role="radiogroup" aria-labelledby="slurStyleL">
+          <input type="radio" name="slurStyle" id="ss-line" value="line"><label for="ss-line">Line</label>
           <input type="radio" name="slurStyle" id="ss-above" value="above"><label for="ss-above">Arc above</label>
           <input type="radio" name="slurStyle" id="ss-below" value="below"><label for="ss-below">Arc below</label>
           <input type="radio" name="slurStyle" id="ss-join" value="join"><label for="ss-join">Joined icons</label>
         </div>
       </div>
-      <div class="opt">
-        <span class="name">Held syllables</span>
-        <label class="check"><input type="checkbox" name="slurHeld"> Slur the notes under a held syllable (_)</label>
       </div>
-      <p class="help">Joined notes play without a new attack. On the same pitch they play as one held sound, like a tie. Joined icons need icons on; with only the line showing, an arc is drawn instead.</p>
-
-      <h3>Beat bars</h3>
-      <div class="opt">
+      <div class="group">
+      <div class="opt stack slur-opt">
+        <span class="name">Held syllables</span>
+        <label class="check"><input type="checkbox" name="slurHeld"> Join the notes under a held syllable (_)</label>
+      </div>
+      <p class="help">Line draws a slur the way the contour line looks along the bottom of the icons, in the contour line’s thickness and color. With the contour line on, its other connectors turn thin so slurs stand out. Joined notes play without a new attack.</p>
+      </div>
+      <div class="group">
+        <h3>Beat bars</h3>
+      <div class="opt beat-opt">
         <span class="name">Macrobeats</span>
         <div class="colorline">
           <label class="instr" style="font-weight:400">Emphasis <input type="color" name="macroStrong" aria-label="Macrobeat emphasis color"></label>
           <label class="instr" style="font-weight:400">Standard <input type="color" name="macroWeak" aria-label="Macrobeat standard color"></label>
         </div>
       </div>
-      <div class="opt">
+      <div class="opt beat-opt">
         <span class="name">Microbeats</span>
         <div class="colorline">
           <label class="instr" style="font-weight:400">Emphasis <input type="color" name="microStrong" aria-label="Microbeat emphasis color"></label>
@@ -460,8 +631,11 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         </div>
       </div>
       <p class="help" style="margin:8px 0 0">Emphasis colors the first macrobeat of each measure and the first microbeat of each macrobeat. <button class="btn small" id="resetBeatColors" type="button" style="margin-left:6px">Use the template’s grays</button></p>
-
-      <h3>Measure groups</h3>
+      </div>
+    </section>
+    <section class="pane groups" id="pane-measures" role="tabpanel" aria-labelledby="tab-measures" hidden>
+      <div class="group">
+        <h3>Measure groups</h3>
       <div class="opt">
         <label class="name" for="groupMeasures">Group every</label>
         <div>
@@ -473,12 +647,19 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
           </select>
         </div>
       </div>
-      <div class="opt">
+      <div class="opt stack">
         <span class="name">Show</span>
         <div class="checks">
           <label class="check"><input type="checkbox" name="dividers"> Divider lines between groups</label>
           <label class="check"><input type="checkbox" name="frames"> A frame around each group</label>
         </div>
+      </div>
+      </div>
+      <div class="group">
+        <h3>Spacing</h3>
+      <div class="opt">
+        <label class="name" for="groupGap">Space between groups</label>
+        <div class="slider"><input type="range" id="groupGap" name="groupGap" min="0" max="96" step="4"><output for="groupGap" id="groupGapOut"></output></div>
       </div>
       <div class="opt" id="frameWidthRow">
         <label class="name" for="frameWidth">Frame line</label>
@@ -492,27 +673,9 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         <label class="name" for="dividerReach">Divider length</label>
         <div class="slider"><input type="range" id="dividerReach" name="dividerReach" min="20" max="300" step="5"><output for="dividerReach" id="dividerReachOut" style="min-width:6.5rem"></output></div>
       </div>
-      <div class="opt">
-        <label class="name" for="groupGap">Space between groups</label>
-        <div class="slider"><input type="range" id="groupGap" name="groupGap" min="0" max="96" step="4"><output for="groupGap" id="groupGapOut"></output></div>
       </div>
-      <div class="opt">
-        <span class="name" id="rangeL">Pitch range</span>
-        <div class="checks">
-          <div class="seg" role="radiogroup" aria-labelledby="rangeL" style="justify-self:start">
-            <input type="radio" name="rangeMode" id="rm-fit" value="fit"><label for="rm-fit">Fit each pattern</label>
-            <input type="radio" name="rangeMode" id="rm-fixed" value="fixed"><label for="rm-fixed">Same for the whole song</label>
-          </div>
-          <div class="inline" id="rangeRow">
-            <label class="instr" for="rangeLow" style="font-weight:400">Low <input class="cell range" id="rangeLow" name="rangeLow" type="text" spellcheck="false" autocomplete="off" placeholder="C4"></label>
-            <label class="instr" for="rangeHigh" style="font-weight:400">High <input class="cell range" id="rangeHigh" name="rangeHigh" type="text" spellcheck="false" autocomplete="off" placeholder="A4"></label>
-            <button class="btn small" id="rangeInclude" type="button">Include this pattern</button>
-          </div>
-          <p class="help" style="margin:0">With “Same for the whole song,” every pattern is drawn on the same pitch range, so frames and icon heights match from pattern to pattern. Load each of the song’s patterns and choose Include this pattern; the range grows to cover them all.</p>
-        </div>
-      </div>
-
-      <h3>Lines</h3>
+      <div class="group">
+        <h3>Lines</h3>
       <div class="opt">
         <label class="name" for="lineMeasures">Measures per line</label>
         <div>
@@ -532,9 +695,11 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         <div class="slider"><input type="range" id="lineGap" name="lineGap" min="0" max="96" step="4"><output for="lineGap" id="lineGapOut"></output></div>
       </div>
       <p class="help">Lines count measures from the first downbeat, so a pickup leads into the first line. To start a line anywhere else, type // in Rhythm, such as 8 8 // 2 2 4. Every line uses the song’s whole pitch range, so the same pitch sits at the same height on every line.</p>
-
-      <h3>Layout</h3>
-      <div class="opt">
+      </div>
+    </section>
+    <section class="pane groups" id="pane-layout" role="tabpanel" aria-labelledby="tab-layout" hidden>
+      <div class="group">
+      <div class="opt stack">
         <span class="name" id="pitchL">Pitch</span>
         <div class="seg" role="radiogroup" aria-labelledby="pitchL">
           <input type="radio" name="pitchShow" id="ps-on" value="on"><label for="ps-on">Show heights</label>
@@ -549,7 +714,17 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         <label class="name" for="vstretch">Height of leaps</label>
         <div class="slider"><input type="range" id="vstretch" name="vstretch" min="0.5" max="3" step="0.25"><output for="vstretch" id="vstretchOut"></output></div>
       </div>
-      <div class="opt">
+      <div class="opt stack">
+        <span class="name" id="guideL">Pitch lines</span>
+        <div class="seg" role="radiogroup" aria-labelledby="guideL">
+          <input type="radio" name="guides" id="gd-off" value="off"><label for="gd-off">Off</label>
+          <input type="radio" name="guides" id="gd-used" value="used"><label for="gd-used">Pitches used</label>
+          <input type="radio" name="guides" id="gd-all" value="all"><label for="gd-all">Every half step</label>
+        </div>
+      </div>
+      </div>
+      <div class="group">
+      <div class="opt stack">
         <span class="name" id="lyrL">Lyrics</span>
         <div class="checks">
           <label class="check"><input type="checkbox" name="showLyrics"> Show lyrics</label>
@@ -572,15 +747,9 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
           </label>
         </div>
       </div>
-      <div class="opt">
-        <span class="name" id="guideL">Pitch lines</span>
-        <div class="seg" role="radiogroup" aria-labelledby="guideL">
-          <input type="radio" name="guides" id="gd-off" value="off"><label for="gd-off">Off</label>
-          <input type="radio" name="guides" id="gd-used" value="used"><label for="gd-used">Pitches used</label>
-          <input type="radio" name="guides" id="gd-all" value="all"><label for="gd-all">Every half step</label>
-        </div>
       </div>
-      <div class="opt">
+      <div class="group">
+      <div class="opt stack">
         <span class="name">Extras</span>
         <div class="checks">
           <label class="check"><input type="checkbox" name="names"> Letter names on the notes</label>
@@ -588,10 +757,14 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
           <label class="check"><input type="checkbox" name="transparent"> Transparent background in PNGs</label>
         </div>
       </div>
-
-      <p class="help" style="margin-top:14px"><button class="btn" id="resetLook" type="button">Reset the look</button></p>
+      <div class="opt">
+        <span class="name">Start over</span>
+        <div><button class="btn small" id="resetLook" type="button">Reset the look</button></div>
+      </div>
+      </div>
     </section>
   </div>
+  <p class="notice" id="notice" role="status" aria-live="polite"></p>
 </div>
 
 <script>
@@ -610,6 +783,31 @@ const RHY_RE = /^([Rr])?\s*(\d*\.?\d+)$/;
 const NUM_RE = /^\d*\.?\d+$/;
 const DEFAULT_SPELL = [["C",0],["C#",1],["D",0],["Eb",-1],["E",0],["F",0],["F#",1],["G",0],["Ab",-1],["A",0],["Bb",-1],["B",0]];
 const MAX_SHORTS = 512;
+// Numbers in Pitch names are steps of the pattern's key. 1 is the key's first note, placed between
+// middle C (C4) and the B above it; the rest count up the scale from there (8 is the 1 above).
+// # or b before or after a number raises or lowers it (#4, b7, 7b); + (or ') moves it up an octave
+// and - moves it down (5- is the 5 below, 1+ the 1 above). Repeat the mark for two octaves.
+const DEG_RE = /^([#\u266Fb\u266D]?)([1-8])([#\u266Fb\u266D]?)((?:[+'\u2019])+|-+)?$/;
+const KEY_MODES = { major: [0, 2, 4, 5, 7, 9, 11], minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], phrygian: [0, 1, 3, 5, 7, 8, 10], lydian: [0, 2, 4, 6, 7, 9, 11], mixolydian: [0, 2, 4, 5, 7, 9, 10] };
+const LETTERS = "CDEFGAB";
+function keyOf(tonic, mode){
+  const t = parsePitch(String(tonic || "C").trim()) || parsePitch("C");
+  const m = KEY_MODES[mode] ? mode : "major";
+  return { letter: LETTERS.indexOf(t.name[0]), pc: mod12(t.pc), steps: KEY_MODES[m], mode: m,
+           label: t.name.replace("#", "\u266F").replace("b", "\u266D") + " " + (m === "major" || m === "minor" ? m : m[0].toUpperCase() + m.slice(1)) };
+}
+// A number as a pitch in key k (with its spelling in that key), or null.
+function parseDegree(tok, k){
+  const m = DEG_RE.exec(tok);
+  if (!m || (m[1] && m[3])) return null;
+  const ch = m[1] || m[3], alt = !ch ? 0 : (ch === "#" || ch === "\u266F") ? 1 : -1;
+  const d = Number(m[2]) - 1, dd = d % 7, marks = m[4] || "";
+  const shift = (d >= 7 ? 1 : 0) + (marks[0] === "-" ? -marks.length : marks.length);
+  const abs = 60 + k.pc + k.steps[dd] + alt + 12 * shift;
+  const L = LETTERS[(k.letter + dd) % 7], acc = mod12(abs - LETTER_PC[L] + 6) - 6;
+  return { abs, name: L + (acc > 0 ? "#".repeat(acc) : "b".repeat(-acc)), acc };
+}
+function isPitchCell(c){ const t = String(c == null ? "" : c).trim(); return !t || t === "-" || t === "_" || t === "." || PITCH_RE.test(t) || DEG_RE.test(t); }
 const FONT_STACK = "'Atkinson Hyperlegible', Arial, sans-serif";
 
 function mod12(n){ return ((n % 12) + 12) % 12; }
@@ -628,7 +826,8 @@ function parsePitch(tok){
 
 // Same octave rule as the template: first note defaults to octave 4, then each
 // unnumbered note lands within -5..+6 half steps of the note before it.
-function buildModel(rStr, pStr, lStr){
+function buildModel(rStr, pStr, lStr, key){
+  key = key || keyOf("C", "major");
   const msgs = [];
   // ~ joins a sound to the next one: a slur, or a tie when the pitch stays the same.
   // // starts a new line of icons before the next sound.
@@ -659,18 +858,22 @@ function buildModel(rStr, pStr, lStr){
   if (strayTilde) msgs.push({ level: "warn", text: `Rhythm: ~ joins two sounds that sit side by side, so ${strayTilde === 1 ? "one ~ next to a rest or at an end was" : strayTilde + " of them next to rests or at an end were"} skipped.` });
 
   const badP = [];
-  const pTok = splitTokens(pStr).map(t => {
+  // A pattern that uses numbers reads b before a number as flat (b7); in one made of letter names
+  // only, b3 is still the note B3.
+  const rawP = splitTokens(pStr);
+  const usesNumbers = rawP.some(t => DEG_RE.test(t) && !PITCH_RE.test(t));
+  const pTok = rawP.map(t => {
     if (t === "-" || t === "." || t === "_") return null;
-    const p = parsePitch(t);
+    const p = (usesNumbers || !PITCH_RE.test(t) ? parseDegree(t, key) : null) || parsePitch(t);
     if (!p) badP.push(t);
     return p;
   });
-  if (badP.length) msgs.push({ level: "err", text: `Pitch names: ${quoteList(badP)} isn\u2019t a pitch name. Use a letter A\u2013G, then # or b if needed, then an octave number if you want one.` });
+  if (badP.length) msgs.push({ level: "err", text: `Pitches: ${quoteList(badP)} isn\u2019t a pitch. Use a letter A\u2013G (with # or b and an octave number if needed), or a number 1\u20137 for a step of the key.` });
 
   const sounds = notes.filter(n => !n.rest);
   if (sounds.length && pTok.length > sounds.length){
     const extra = pTok.length - sounds.length;
-    msgs.push({ level: "warn", text: `There ${extra === 1 ? "is 1 more pitch name" : `are ${extra} more pitch names`} than sounds, so the last ${extra === 1 ? "one is" : extra + " are"} left out.` });
+    msgs.push({ level: "warn", text: `There ${extra === 1 ? "is 1 more pitch" : `are ${extra} more pitches`} than sounds, so the last ${extra === 1 ? "one is" : extra + " are"} left out.` });
   }
   sounds.forEach((s, k) => { s.ptok = pTok[k] || null; });
   const firstNamed = (sounds.find(s => s.ptok) || {}).ptok || null;
@@ -681,8 +884,9 @@ function buildModel(rStr, pStr, lStr){
     let p;
     if (idx === 0){
       if (!nm) nm = firstNamed;
-      p = nm ? 12 * ((nm.oct < 0 ? 4 : nm.oct) + 1) + nm.pc : 60;
+      p = nm ? (nm.abs != null ? nm.abs : 12 * ((nm.oct < 0 ? 4 : nm.oct) + 1) + nm.pc) : 60;
     } else if (!nm) p = prev;
+    else if (nm.abs != null) p = nm.abs;
     else if (nm.oct >= 0) p = 12 * (nm.oct + 1) + nm.pc;
     else p = prev + mod12(nm.pc - prev + 5) - 5;
     n.p = p; prev = p;
@@ -712,25 +916,32 @@ function buildModel(rStr, pStr, lStr){
   notes.forEach(n => { minP = Math.min(minP, n.p); maxP = Math.max(maxP, n.p); });
   if (!notes.length){ minP = maxP = 60; }
   const breaks = notes.filter((n, i) => n.breakAfter && i < notes.length - 1).map(n => n.t1);
-  return { notes, sounds, total, hasPitch: !!firstNamed, spellMap, syl, msgs, minP, maxP, breaks };
+  return { notes, sounds, total, hasPitch: !!firstNamed, spellMap, syl, msgs, minP, maxP, breaks, usesNumbers };
 }
 
 // Which sounds join the next one: ~ in the rhythm, or a held syllable (_) when that option is on.
-// Only sounds side by side can join; a rest between them breaks it.
+// Only sounds side by side can join; a rest between them breaks it. Each link is a "tie" (the pitch
+// stays the same) or a "slur" (the pitch changes, such as one syllable sung on several notes).
+// "Rhythm only" keeps each sound's real pitch in pReal, so its links stay the same kind.
 function slurLinks(model, o){
-  const s = model.sounds, out = [];
+  const s = model.sounds, out = [], pOf = n => n.pReal != null ? n.pReal : n.p;
   for (let k = 0; k < s.length; k++){
     const nx = s[k + 1];
-    out.push(!!nx && !!(s[k].slurNext || (o.slurHeld !== false && s[k].holdNext)) && Math.abs(s[k].t1 - nx.t0) < 1e-9);
+    const on = !!nx && !!(s[k].slurNext || (o.slurHeld !== false && s[k].holdNext)) && Math.abs(s[k].t1 - nx.t0) < 1e-9;
+    out.push(on ? (pOf(s[k]) === pOf(nx) ? "tie" : "slur") : false);
   }
   return out;
 }
+// Runs of sounds joined the same way. A tie followed by a slur makes two runs that share a note.
 function slurGroupsOf(model, o){
   const links = slurLinks(model, o), groups = [];
   let cur = null;
   model.sounds.forEach((n, k) => {
-    cur = cur ? cur.concat(n) : [n];
-    if (!links[k]){ if (cur.length > 1) groups.push(cur); cur = null; }
+    if (cur) cur.push(n); else cur = Object.assign([n], { kind: links[k] || null });
+    if (!links[k] || links[k] !== cur.kind){
+      if (cur.length > 1) groups.push(cur);
+      cur = links[k] ? Object.assign([n], { kind: links[k] }) : null;
+    }
   });
   return groups;
 }
@@ -779,7 +990,7 @@ function lyricFont(o){ return LYRIC_FONTS[o.lyricFont] || LYRIC_FONTS.lexend; }
 
 // Rhythm only: every sound on one level, no pitch labels.
 function flattenModel(model){
-  const notes = model.notes.map(n => Object.assign({}, n, { p: 60 }));
+  const notes = model.notes.map(n => Object.assign({}, n, { p: 60, pReal: n.p }));
   return Object.assign({}, model, { notes, sounds: notes.filter(n => !n.rest), hasPitch: false, minP: 60, maxP: 60, spellMap: new Map() });
 }
 
@@ -840,20 +1051,28 @@ function buildScene(model, o, forScreen){
   // the layout can make room for them, and for words they push aside, before anything is placed.
   const slurOn = o.showSlurs !== false;
   const slurGroups = slurOn ? slurGroupsOf(model, o) : [];
-  // On one line of a longer song, a slur can carry over from the line before, or on to the next.
+  // On one line of a longer song, a tie or slur can carry over from the line before, or on to the next.
   if (slurOn && model.sounds.length){
     const s0 = model.sounds[0], sN = model.sounds[model.sounds.length - 1];
-    if (model.contIn){ const g = slurGroups.find(g => g[0] === s0); if (g) g.openStart = true; else slurGroups.unshift(Object.assign([s0], { openStart: true })); }
-    if (model.contOut){ const g = slurGroups.find(g => g[g.length - 1] === sN); if (g) g.openEnd = true; else slurGroups.push(Object.assign([sN], { openEnd: true })); }
+    if (model.contIn){ const g = slurGroups.find(g => g[0] === s0 && g.kind === model.contIn); if (g) g.openStart = true; else slurGroups.unshift(Object.assign([s0], { openStart: true, kind: model.contIn })); }
+    if (model.contOut){ const g = slurGroups.find(g => g[g.length - 1] === sN && g.kind === model.contOut); if (g) g.openEnd = true; else slurGroups.push(Object.assign([sN], { openEnd: true, kind: model.contOut })); }
   }
-  const joinMode = slurOn && o.slurStyle === "join" && icons;
-  const arcsOn = slurOn && !joinMode;
-  const arcDir = o.slurStyle === "below" ? 1 : -1;          // -1 bulges up, 1 bulges down
+  // Ties and slurs each have their own style. Joined icons need icons; without them an arc is drawn.
+  const styleOf = kind => {
+    const v = kind === "slur" ? (o.slurStyle || "line") : (o.tieStyle || "above");
+    return v === "join" && !icons ? "above" : v;
+  };
+  slurGroups.forEach(g => { g.style = styleOf(g.kind); });
+  const joinGroups = slurGroups.filter(g => g.style === "join");
+  const lineGroups = slurGroups.filter(g => g.style === "line");
+  // Kinds of link anywhere in the song (every line of a page agrees), for room and for line weights.
+  const songKinds = o.slurKinds || [...new Set(slurLinks(model, o).filter(Boolean))];
+  const slurLineSong = slurOn && songKinds.includes("slur") && styleOf("slur") === "line";
   const relOf = p => (maxP - p) * H;
   const edgeUp = half - 2 * S, edgeDn = halfDown - 2 * S;    // how far each sound reaches from its center
   const slurTk = Math.max(2, 2.6 * S), slurClear = 4 * S;
   const slurArc = g => {
-    const a = g[0], b = g[g.length - 1];
+    const a = g[0], b = g[g.length - 1], arcDir = g.style === "below" ? 1 : -1;   // -1 bulges up, 1 bulges down
     const inset = n => Math.min((xR(n) - xL(n)) * 0.3, 10 * S);
     const edge = n => arcDir < 0 ? relOf(n.p) - edgeUp - slurClear : relOf(n.p) + edgeDn + slurClear;
     // A slur carried over from the line before, or on to the next, runs off the line's edge (inside its frame).
@@ -883,26 +1102,27 @@ function buildScene(model, o, forScreen){
       h += worst * 1.4 + 0.5;
     }
     const outer = ctrl(h + slurTk * 4 / 3);
-    return { x0, y0, x3, y3, inner: ctrl(h), outer, rim: curve(outer) };
+    return { x0, y0, x3, y3, inner: ctrl(h), outer, rim: curve(outer), dir: arcDir };
   };
-  const arcs = arcsOn ? slurGroups.map(slurArc) : [];
-  // The arcs' outermost point over [xa, xb] (rel), or null when no arc is there.
-  const arcReach = (xa, xb) => {
+  const arcs = slurGroups.filter(g => g.style === "above" || g.style === "below").map(slurArc);
+  const arcsUp = arcs.filter(ar => ar.dir < 0), arcsDn = arcs.filter(ar => ar.dir > 0);
+  // The outermost point of the arcs bulging one way (dir) over [xa, xb] (rel), or null when none is there.
+  const arcReach = (dir, xa, xb) => {
     let best = null;
-    for (const ar of arcs){
+    for (const ar of (dir < 0 ? arcsUp : arcsDn)){
       const pts = ar.rim, lo = pts[0][0], hiX = pts[pts.length - 1][0];
       if (xb < lo || xa > hiX) continue;
       const yAt = x => { for (let i = 1; i < pts.length; i++) if (pts[i][0] >= x){ const [ax, ay] = pts[i - 1], [bx, by] = pts[i]; return bx === ax ? by : ay + (by - ay) * (x - ax) / (bx - ax); } return pts[pts.length - 1][1]; };
       const ys = pts.filter(p => p[0] >= xa && p[0] <= xb).map(p => p[1]);
       if (xa >= lo) ys.push(yAt(xa));
       if (xb <= hiX) ys.push(yAt(xb));
-      for (const y of ys) best = best === null ? y : (arcDir < 0 ? Math.min(best, y) : Math.max(best, y));
+      for (const y of ys) best = best === null ? y : (dir < 0 ? Math.min(best, y) : Math.max(best, y));
     }
     return best;
   };
   // Words (rel baselines) that would sit where an arc is move past it.
-  const clearAbove = (base, xa, xb, gap) => { if (!arcs.length || arcDir > 0) return base; const r = arcReach(xa, xb); return r === null ? base : Math.min(base, r - gap); };
-  const clearBelow = (base, xa, xb, gap) => { if (!arcs.length || arcDir < 0) return base; const r = arcReach(xa, xb); return r === null ? base : Math.max(base, r + gap); };
+  const clearAbove = (base, xa, xb, gap) => { if (!arcsUp.length) return base; const r = arcReach(-1, xa, xb); return r === null ? base : Math.min(base, r - gap); };
+  const clearBelow = (base, xa, xb, gap) => { if (!arcsDn.length) return base; const r = arcReach(1, xa, xb); return r === null ? base : Math.max(base, r + gap); };
 
   // Lyrics start at the left edge of their first icon. Shrink them (never below 60%) until
   // each syllable ends before the next syllable's icon begins.
@@ -940,18 +1160,26 @@ function buildScene(model, o, forScreen){
   const lyrGap = lyrSize * 0.25 + 2 * S, nameGapUp = 2.5 * S, nameGapDn = 2 * S + nameSize * 0.78;
   const nameLabs = namesOn ? labelsFor(model, model.labelPitches || [...new Set(model.sounds.map(n => n.p))]) : null;
   let slurTop = 0, slurBottom = 0;
-  if (arcsOn){
-    const room = lock && o.slurRoom !== false ? 24 * S : 0;
+  // A locked layout keeps the same room on each side an arc style uses, whether or not this fragment has one.
+  const lockRoom = lock && o.slurRoom !== false && slurOn ? 24 * S : 0;
+  const sideStyles = (o.slurKinds || ["tie", "slur"]).map(styleOf);
+  {
+    const room = sideStyles.includes("above") ? lockRoom : 0;
     let need = 0;
-    if (arcDir < 0){
-      for (const ar of arcs) need = Math.max(need, -half - Math.min(...ar.rim.map(p => p[1])) + 2 * S);
+    {
+      for (const ar of arcsUp) need = Math.max(need, -half - Math.min(...ar.rim.map(p => p[1])) + 2 * S);
       const std = -half - 3 * S;   // the highest a word normally sits
       if (follow) model.syl.forEach(sy => { const [a, b] = sylSpan(sy); need = Math.max(need, std - clearAbove(relOf(sylHi(sy)) - half - 3 * S, a, b, lyrGap)); });
       else if (namesOn) model.sounds.forEach(n => { need = Math.max(need, std - clearAbove(relOf(n.p) - half - 3 * S, xL(n), xL(n) + nameW(nameLabs.get(n.p)), nameGapUp)); });
       slurTop = Math.max(need, room);
-    } else {
+    }
+  }
+  {
+    const room = sideStyles.includes("below") ? lockRoom : 0;
+    let need = 0;
+    {
       const base = relOf(minP) + halfDown;
-      for (const ar of arcs) need = Math.max(need, Math.max(...ar.rim.map(p => p[1])) - base + 2 * S);
+      for (const ar of arcsDn) need = Math.max(need, Math.max(...ar.rim.map(p => p[1])) - base + 2 * S);
       if (followSpace && namesOn){
         const std = base + nameSize * 0.8 + 2 * S;
         model.sounds.forEach(n => { need = Math.max(need, clearBelow(relOf(n.p) + halfDown + nameSize * 0.8 + 2 * S, xL(n), xL(n) + nameW(nameLabs.get(n.p)), nameGapDn) - std); });
@@ -1082,9 +1310,10 @@ function buildScene(model, o, forScreen){
     const ink = o.lineInk;
 
     if (o.shape === "steps"){
-      const fullSingle = o.conn === "full" && o.lineColor !== "dur";
-      const cw = o.conn === "full" ? LW : Math.max(1.5 * S, LW * 0.4);
-      const cc = o.lineColor === "dur" ? (o.conn === "full" ? "#3D434A" : "#6B6B6B") : ink;
+      const fullConn = o.conn === "full" && !slurLineSong;   // slurs drawn as a line stand out against thin connectors
+      const fullSingle = fullConn && o.lineColor !== "dur";
+      const cw = fullConn ? LW : Math.max(1.5 * S, LW * 0.4);
+      const cc = o.lineColor === "dur" ? (fullConn ? "#3D434A" : "#6B6B6B") : ink;
       for (const ph of phrases){
         if (fullSingle){
           const pts = [];
@@ -1149,10 +1378,10 @@ function buildScene(model, o, forScreen){
 
   // "Joined icons": a band across the space between joined sounds, so they read as one.
   const drawJoins = () => {
-    if (!joinMode) return;
+    if (!joinGroups.length) return;
     const op = Math.max(0, Math.min(1, o.iconOpacity / 100)), bt0 = iconH * 0.42, sw = Math.max(1, 2 * S);
     const pairs = [];
-    for (const g of slurGroups){
+    for (const g of joinGroups){
       for (let i = 0; i < g.length - 1; i++) pairs.push([xR(g[i]) - 1, yOf(g[i].p), xL(g[i + 1]) + 1, yOf(g[i + 1].p)]);
       // A slur carried over from the line before, or on to the next, gets a short open band.
       if (g.openStart) pairs.push([xL(g[0]) - G, yOf(g[0].p), xL(g[0]) + 1, yOf(g[0].p)]);
@@ -1168,8 +1397,25 @@ function buildScene(model, o, forScreen){
     }
   };
 
+  // Slurs as a connecting line: the contour line's kind of line, along the bottom of the slurred icons
+  // (or through the middle of the line when icons are off), in the contour line's thickness and color.
+  const drawSlurLines = () => {
+    if (!lineGroups.length) return;
+    const w = Math.max(2 * S, LW), c = o.lineColor === "dur" ? "#3D434A" : (o.lineInk || "#212121");
+    const yS = n => icons ? yOf(n.p) + iconH / 2 - w / 2 : yOf(n.p);
+    const reachIn = framesOn ? Math.max(3 * S, fpad - 2 * S) : 8 * S, reachOut = framesOn ? Math.max(3 * S, fpad - 2 * S) : 12 * S;
+    for (const g of lineGroups){
+      const pts = [];
+      if (g.openStart) pts.push([xL(g[0]) - reachIn, yS(g[0])]);
+      g.forEach(n => pts.push([xL(n), yS(n)], [xR(n), yS(n)]));
+      if (g.openEnd){ const n = g[g.length - 1]; pts.push([xR(n) + reachOut, yS(n)]); }
+      items.push({ t: "path", d: polyD(pts), c, w, join: "round", cap: "butt" });
+    }
+  };
   // Behind the icons when it follows their bottom edges; on top when it runs through the middle.
-  if (anchorBottom){ drawLine(); drawJoins(); drawIcons(); } else { drawJoins(); drawIcons(); drawLine(); }
+  if (anchorBottom){ drawLine(); drawSlurLines(); drawJoins(); drawIcons(); }
+  else if (icons){ drawSlurLines(); drawJoins(); drawIcons(); drawLine(); }
+  else { drawJoins(); drawIcons(); drawLine(); drawSlurLines(); }
 
   // Arcs: a slur shape, thickest in the middle and tapering to its ends.
   for (const ar of arcs){
@@ -1251,8 +1497,8 @@ function lineModel(model, a, b, links){
   const syl = sounds.length ? model.syl.filter(sy => sy.first >= k0 && sy.first <= k1).map(sy => Object.assign({}, sy, { first: sy.first - k0, last: Math.min(sy.last, k1) - k0 })) : [];
   return Object.assign({}, model, {
     notes, sounds, syl, total: b - a, breaks: [],
-    contIn: sounds.length > 0 && k0 > 0 && !!links[k0 - 1],
-    contOut: sounds.length > 0 && k1 < model.sounds.length - 1 && !!links[k1],
+    contIn: sounds.length > 0 && k0 > 0 && (links[k0 - 1] || false),
+    contOut: sounds.length > 0 && k1 < model.sounds.length - 1 && (links[k1] || false),
     labelPitches: [...new Set(model.sounds.map(n => n.p))],
   });
 }
@@ -1266,7 +1512,7 @@ function buildPage(model, o, forScreen){
   const links = slurLinks(model, o), cuts = [0, ...breaks, model.total];
   const base = Object.assign({}, o, {
     lockLayout: true, lyricsOn: o.lyricsOn !== false && model.syl.length > 0, names: !!o.names && model.hasPitch,
-    slurRoom: o.showSlurs !== false && links.some(Boolean),
+    slurRoom: o.showSlurs !== false && links.some(Boolean), slurKinds: [...new Set(links.filter(Boolean))],
   });
   const lines = [];
   for (let i = 0; i < cuts.length - 1; i++){
@@ -1406,7 +1652,7 @@ function gridToFields(rhy, pit, lyr, startCol){
     if (m[1]){ R.push("R" + Number(m[2])); continue; }
     R.push(String(Number(m[2])));
     const p = String(pit[j] == null ? "" : pit[j]).trim();
-    P.push(PITCH_RE.test(p) ? p : "-");
+    P.push(PITCH_RE.test(p) || DEG_RE.test(p) ? p : "-");
     const l = String(lyr[j] == null ? "" : lyr[j]).trim().replace(/\s+/g, "\u00A0");
     L.push(l || "-");
   }
@@ -1438,6 +1684,9 @@ function fieldsFromPaste(text){
   const ri = rows.findIndex(row => row.some(c => { const m = RHY_RE.exec(c.trim()); return m && Number(m[2]) > 0; }));
   if (ri < 0) return null;
   const pit = rows[ri + 1] || [];
+  // Numbers then words is a pitch row (in numbers) and a lyrics row, not a rhythm and pitches: leave it be.
+  const pitFilled = pit.filter(c => c.trim());
+  if (pitFilled.length && pitFilled.filter(c => !isPitchCell(c)).length / pitFilled.length > 0.5) return null;
   let lyr = rows[ri + 2] || [];
   const filled = lyr.filter(c => c.trim()), nums = filled.filter(c => NUM_RE.test(c.trim()));
   if (filled.length && nums.length / filled.length > 0.5) lyr = [];
@@ -1452,20 +1701,20 @@ const MELODY_DEFAULTS = {
   rhythm: "1 1 1 1 1 1 2 | 1 1 1 1 1 1 2",
   pitches: "C C G4 G A A G F F E E D D C",
   lyrics: "Twin- kle twin- kle lit- tle star how I won- der what you are",
-  meter: "2/4", micro: false, pickup: ""
+  meter: "2/4", micro: false, pickup: "", keyTonic: "C", keyMode: "major"
 };
 const LOOK_DEFAULTS = {
   showIcons: true, iconOpacity: 100, iconColor: "dur", iconInk: "#212121", restStyle: "outline", iconOutline: false,
   showLine: false, shape: "steps", conn: "thin", lineColor: "one", lineInk: "#212121", thick: 6, lineRests: "gap", lineAnchor: "bottom", lineStyle: "solid",
-  showSlurs: true, slurStyle: "above", slurHeld: true, lineMeasures: "0", lineGap: 16,
+  showSlurs: true, tieStyle: "above", slurStyle: "line", slurHeld: true, lineMeasures: "0", lineGap: 16,
   pitchShow: "on", size: 2, vstretch: 1, lyricsPos: "follow", showLyrics: true, lyricScale: 100, lyricFont: "lexend", groupMeasures: "1", dividers: false, frames: false, macroStrong: "#6B6B6B", macroWeak: "#C8C8C8", microStrong: "#6B6B6B", microWeak: "#C8C8C8", frameWidth: 2, framePad: 12, dividerReach: 100, groupGap: 0, rangeMode: "fit", rangeLow: "", rangeHigh: "", guides: "off", names: false, grid: false, transparent: false
 };
 const PLAY_DEFAULTS = { tempo: 96, loop: false, follow: true, countBeats: "0", instrument: "piano" };
-const MELODY_KEYS = ["rhythm", "pitches", "lyrics", "meter", "pickup", "pitchShow", "tempo"];
+const MELODY_KEYS = ["rhythm", "pitches", "lyrics", "meter", "pickup", "pitchShow", "tempo", "keyTonic", "keyMode"];
 const STORE_KEY = "rhythm-icon-maker:v2";
 
 let st = Object.assign({}, MELODY_DEFAULTS, LOOK_DEFAULTS, PLAY_DEFAULTS, { sheet: RIT_LINK, patName: "", currentId: null });
-try { const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (saved && typeof saved === "object"){ st = Object.assign(st, saved); if (saved.countBeats === undefined && saved.countIn) st.countBeats = "m1"; } } catch (e) {}
+try { const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (saved && typeof saved === "object"){ st = Object.assign(st, saved); if (saved.countBeats === undefined && saved.countIn) st.countBeats = "m1"; if (saved.tieStyle === undefined && typeof saved.slurStyle === "string") st.tieStyle = saved.slurStyle === "line" ? "above" : saved.slurStyle; } } catch (e) {}
 
 const $ = id => document.getElementById(id);
 const root = document.querySelector(".wrap");
@@ -1527,18 +1776,18 @@ let raf = 0;
 function scheduleRender(){ cancelAnimationFrame(raf); raf = requestAnimationFrame(render); }
 
 function render(){
-  model = buildModel(st.rhythm, st.pitches, st.lyrics);
+  model = buildModel(st.rhythm, st.pitches, st.lyrics, keyOf(st.keyTonic, st.keyMode));
   drawModel = st.pitchShow === "off" ? flattenModel(model) : model;
   if (!st.showLyrics) drawModel = Object.assign({}, drawModel, { syl: [] });   // keep the typed lyrics, just don't draw them
   const msgs = model.msgs.slice();
   if (st.meter.trim() && !parseMeter(st.meter)) msgs.push({ level: "warn", text: "Meter: use a time signature such as 3/4 or 6/8 to get beat bars." });
-  if (!st.showIcons && !st.showLine) msgs.push({ level: "warn", text: "Icons and the line are both turned off under Look, so only labels and beat bars show." });
+  if (!st.showIcons && !st.showLine) msgs.push({ level: "warn", text: "Icons and the line are both turned off, so only labels and beat bars show. Turn one on in the Icons or Contour line tab." });
   const pk = Number(st.pickup) || 0, pm = parseMeter(st.meter);
   if (String(st.pickup || "").trim() && !(Number(st.pickup) >= 0)) msgs.push({ level: "warn", text: "Pickup: type a number of shorts, such as 1 or 2." });
   else if (pk > 0 && !pm) msgs.push({ level: "warn", text: "A pickup needs a meter, so the downbeat after it can be found." });
   else if (pk > 0 && pm && pk >= pm.n * 8 / pm.d) msgs.push({ level: "warn", text: "Pickup: that\u2019s a whole measure or more. Type the length of just the notes before the first downbeat." });
-  if (Number(st.lineMeasures) > 0 && !parseMeter(st.meter)) msgs.push({ level: "warn", text: "Measures per line needs a meter. Type one under Pattern, such as 4/4, or type // in Rhythm where each new line should start." });
-  if ((st.dividers || st.frames) && !parseMeter(st.meter)) msgs.push({ level: "warn", text: "Divider lines and frames need a meter. Type one under Pattern, such as 2/4." });
+  if (Number(st.lineMeasures) > 0 && !parseMeter(st.meter)) msgs.push({ level: "warn", text: "Measures per line needs a meter. Type one in the Pattern tab, such as 4/4, or type // in Rhythm where each new line should start." });
+  if ((st.dividers || st.frames) && !parseMeter(st.meter)) msgs.push({ level: "warn", text: "Divider lines and frames need a meter. Type one in the Pattern tab, such as 2/4." });
   if (st.rangeMode === "fixed" && drawModel.hasPitch && drawModel.notes.length){
     let lo = rangePitch(st.rangeLow), hi = rangePitch(st.rangeHigh);
     if (lo === null || hi === null) msgs.push({ level: "warn", text: "Pitch range: type a low and a high pitch with octave numbers, such as C4 and A4, or choose Include this pattern." });
@@ -1552,7 +1801,7 @@ function render(){
   for (const m of msgs){ const li = document.createElement("li"); li.className = m.level; li.textContent = m.text; msgsEl.appendChild(li); }
 
   if (!model.notes.length){
-    art.innerHTML = `<p class="empty">Type a rhythm under Pattern and the icons appear here.</p>`;
+    art.innerHTML = `<p class="empty">Type a rhythm in the Pattern tab and the icons appear here.</p>`;
     statusEl.textContent = "";
     lastScene = null;
     setExportEnabled(false);
@@ -1563,7 +1812,7 @@ function render(){
   const label = `Rhythm icons for ${model.sounds.length} sounds${rangeBit ? ", " + rangeBit : ""}`;
   art.innerHTML = sceneToSVG(lastScene, { screen: true, transparent: false, attrs: ` role="img" aria-label="${escXML(label)}"` });
   const rests = model.notes.length - model.sounds.length;
-  statusEl.textContent = `${model.sounds.length} ${model.sounds.length === 1 ? "sound" : "sounds"}${rests ? ` and ${rests} ${rests === 1 ? "rest" : "rests"}` : ""} over ${r2(model.total)} ${model.total === 1 ? "short" : "shorts"}${rangeBit ? ", " + rangeBit : ""}${lastScene.lines > 1 ? `, on ${lastScene.lines} lines` : ""}. PNGs save at ${Math.round(lastScene.w * pngRatio(lastScene))} \u00D7 ${Math.round(lastScene.h * pngRatio(lastScene))} px.`;
+  statusEl.textContent = `${model.sounds.length} ${model.sounds.length === 1 ? "sound" : "sounds"}${rests ? ` and ${rests} ${rests === 1 ? "rest" : "rests"}` : ""} over ${r2(model.total)} ${model.total === 1 ? "short" : "shorts"}${rangeBit ? ", " + rangeBit : ""}${model.usesNumbers && st.pitchShow !== "off" ? ", numbers in " + keyOf(st.keyTonic, st.keyMode).label : ""}${lastScene.lines > 1 ? `, on ${lastScene.lines} lines` : ""}. PNGs save at ${Math.round(lastScene.w * pngRatio(lastScene))} \u00D7 ${Math.round(lastScene.h * pngRatio(lastScene))} px.`;
   setExportEnabled(true);
 }
 
@@ -1601,9 +1850,11 @@ function applyFields(f, source, extra){
   if (typeof f.micro === "boolean") st.micro = f.micro;
   st.pickup = typeof f.pickup === "string" ? f.pickup : "";
   if (typeof f.colorOn === "boolean") st.iconColor = f.colorOn ? "dur" : "one";
+  if (typeof f.keyTonic === "string" && f.keyTonic) st.keyTonic = f.keyTonic;
+  if (typeof f.keyMode === "string" && KEY_MODES[f.keyMode]) st.keyMode = f.keyMode;
   if (extra) Object.assign(st, extra);
   writeControls(); save(); render(); renderLib();
-  const parts = ["rhythm"]; if (f.pitches) parts.push("pitch names"); if (f.lyrics) parts.push("lyrics");
+  const parts = ["rhythm"]; if (f.pitches) parts.push("pitches"); if (f.lyrics) parts.push("lyrics");
   note(`${source}: ${joinParts(parts)}.`);
 }
 for (const id of ["rhythm", "pitches", "lyrics"]){
@@ -2249,7 +2500,7 @@ $("resetAll").addEventListener("click", () => {
   }
   disarmReset();
   stopPlayback();
-  Object.assign(st, LOOK_DEFAULTS, PLAY_DEFAULTS, { rhythm: "", pitches: "", lyrics: "", meter: "", micro: false, pickup: "", patName: "", currentId: null });
+  Object.assign(st, LOOK_DEFAULTS, PLAY_DEFAULTS, { rhythm: "", pitches: "", lyrics: "", meter: "", micro: false, pickup: "", keyTonic: "C", keyMode: "major", patName: "", currentId: null });
   writeControls(); save(); render(); renderLib();
   note("Everything is reset. Your saved patterns are still under My patterns.");
 });
@@ -2291,7 +2542,7 @@ function renderLib(){
     const pv = document.createElement("span"); pv.textContent = patternPreview(d);
     b.append(nm, pv);
     b.addEventListener("click", () => {
-      applyFields({ rhythm: d.rhythm, pitches: d.pitches, lyrics: d.lyrics, meter: typeof d.meter === "string" ? d.meter : "", micro: !!d.micro, pickup: typeof d.pickup === "string" ? d.pickup : "" }, `Loaded \u201C${d.name || "Untitled pattern"}\u201D`, { currentId: d.id, patName: d.name || "" });
+      applyFields({ rhythm: d.rhythm, pitches: d.pitches, lyrics: d.lyrics, meter: typeof d.meter === "string" ? d.meter : "", micro: !!d.micro, pickup: typeof d.pickup === "string" ? d.pickup : "", keyTonic: d.keyTonic, keyMode: d.keyMode }, `Loaded \u201C${d.name || "Untitled pattern"}\u201D`, { currentId: d.id, patName: d.name || "" });
     });
     const del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "Delete";
     del.setAttribute("aria-label", `Delete ${d.name || "Untitled pattern"}`);
@@ -2313,7 +2564,7 @@ function renderLib(){
   }
 }
 function patternBody(name){
-  return { name, rhythm: st.rhythm, pitches: st.pitches, lyrics: st.lyrics, meter: st.meter, micro: !!st.micro, pickup: st.pickup || "", updatedAt: Date.now() };
+  return { name, rhythm: st.rhythm, pitches: st.pitches, lyrics: st.lyrics, meter: st.meter, micro: !!st.micro, pickup: st.pickup || "", keyTonic: st.keyTonic || "C", keyMode: st.keyMode || "major", updatedAt: Date.now() };
 }
 function defaultName(){
   const typed = $("patName").value.trim();
@@ -2395,7 +2646,7 @@ function startLocalLibrary(){
 // Export/Import: a small JSON file of patterns, for moving them between computers or sharing them.
 $("exportPats").addEventListener("click", async () => {
   if (!lib.docs.length){ libNote("There are no saved patterns to export yet.", true); return; }
-  const patterns = lib.docs.map(d => ({ name: d.name, rhythm: d.rhythm, pitches: d.pitches || "", lyrics: d.lyrics || "", meter: d.meter || "", micro: !!d.micro, pickup: d.pickup || "" }));
+  const patterns = lib.docs.map(d => ({ name: d.name, rhythm: d.rhythm, pitches: d.pitches || "", lyrics: d.lyrics || "", meter: d.meter || "", micro: !!d.micro, pickup: d.pickup || "", ...(d.keyTonic ? { keyTonic: d.keyTonic, keyMode: d.keyMode || "major" } : {}) }));
   const data = { app: "rhythm-icon-maker", version: 1, exported: new Date().toISOString(), patterns };
   await saveFile("rhythm-icon-patterns.json", new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
 });
@@ -2415,6 +2666,7 @@ $("importFile").addEventListener("change", async e => {
     for (const p of list){
       if (!p || typeof p.rhythm !== "string" || !p.rhythm.trim()) continue;
       const body = { name: String(p.name || "Untitled pattern").slice(0, 80), rhythm: p.rhythm, pitches: String(p.pitches || ""), lyrics: String(p.lyrics || ""), meter: typeof p.meter === "string" ? p.meter : "", micro: !!p.micro, pickup: typeof p.pickup === "string" ? p.pickup : "" };
+      if (typeof p.keyTonic === "string" && p.keyTonic){ body.keyTonic = p.keyTonic; body.keyMode = KEY_MODES[p.keyMode] ? p.keyMode : "major"; }
       // Skip patterns that are already here word for word.
       if (lib.docs.some(d => d.name === body.name && d.rhythm === body.rhythm && (d.pitches || "") === body.pitches && (d.lyrics || "") === body.lyrics)){ dup++; continue; }
       await lib.put(lib.newId(), Object.assign(body, { updatedAt: Date.now() - n }));
@@ -2515,6 +2767,63 @@ tabSel.addEventListener("change", async () => {
 writeControls();
 render();
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => scheduleRender());
+
+/* ---- Tabs: one group of controls at a time, so the drawing stays on screen ---- */
+(function(){
+  const TAB_KEY = "rhythm-icon-maker:tab";
+  const tabs = Array.from(document.querySelectorAll('.tabs [role="tab"]'));
+  function showTab(id, focus){
+    if (!tabs.some(t => t.id === id)) id = tabs[0].id;
+    for (const t of tabs){
+      const on = t.id === id;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+      if (on && focus) t.focus();
+    }
+    try { localStorage.setItem(TAB_KEY, id); } catch (e) {}
+  }
+  // Hide controls: fold the control groups away so the drawing gets the whole window. Any tab opens them again.
+  const dock = document.querySelector(".dock"), fold = document.getElementById("foldDock");
+  function setFolded(on){
+    dock.classList.toggle("closed", on);
+    fold.textContent = on ? "Show controls" : "Hide controls";
+    fold.setAttribute("aria-expanded", on ? "false" : "true");
+  }
+  fold.addEventListener("click", () => setFolded(!dock.classList.contains("closed")));
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => { setFolded(false); showTab(t.id); });
+    t.addEventListener("keydown", e => {
+      const n = tabs.length;
+      const to = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i + n - 1) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+      if (to < 0) return;
+      e.preventDefault(); setFolded(false); showTab(tabs[to].id, true);
+    });
+  });
+  let last = null; try { last = localStorage.getItem(TAB_KEY); } catch (e) {}
+  showTab(last || tabs[0].id);
+
+  // A dot on the Pattern tab when the pattern has a warning and another tab is open.
+  const msgs = document.getElementById("msgs"), patTab = document.getElementById("tab-pattern");
+  const flag = () => {
+    const on = msgs.children.length > 0;
+    patTab.classList.toggle("flag", on);
+    if (on) patTab.setAttribute("aria-label", "Pattern (has a note to check)"); else patTab.removeAttribute("aria-label");
+  };
+  new MutationObserver(flag).observe(msgs, { childList: true }); flag();
+
+  // Typing help: show the help for the box being typed in, beside the boxes.
+  const tipBox = document.getElementById("tipBox");
+  document.getElementById("pane-pattern").addEventListener("focusin", e => {
+    const f = e.target.closest(".field"), h = f && f.querySelector(".help"), lab = f && f.querySelector(":scope > label, :scope > .name, :scope > .field-head > label");
+    if (!h) return;
+    tipBox.textContent = "";
+    const p = document.createElement("p"), b = document.createElement("b");
+    b.textContent = (lab && lab.firstChild ? lab.firstChild.textContent.trim() : "") + ". ";
+    p.append(b, h.textContent);
+    tipBox.append(p);
+  });
+})();
 </script>
 </body>
 </html>
