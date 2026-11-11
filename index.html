@@ -235,6 +235,7 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
 
 /* Pattern: labels beside the boxes, and the typing help for the box you're in shown at the side */
 .tipbox{display:none}
+.load-set{margin-top:10px; font-size:.9375rem}
 .dock .opt.beat-opt{grid-template-columns:7rem minmax(0,1fr)}
 .pane-pattern .below .msgs{margin:0 0 8px}
 .name .sub{font-weight:400; color:var(--muted); margin-left:4px}
@@ -451,12 +452,13 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
     <section class="pane pane-saved" id="pane-saved" role="tabpanel" aria-labelledby="tab-saved" hidden>
       <div class="box">
         <h3>My patterns</h3>
-        <p class="help" style="margin-top:0" id="libHelp">Saved to your account, so they’re here on any computer where you open this page.</p>
+        <p class="help" style="margin-top:0" id="libHelp">Saved to your account, so they’re here on any computer where you open this page. Each pattern keeps all its settings.</p>
         <div class="row">
           <input class="cell" id="patName" type="text" autocomplete="off" placeholder="Pattern name" aria-label="Pattern name">
           <button class="btn" id="saveChanges" type="button" hidden>Save changes</button>
           <button class="btn" id="saveNew" type="button">Save as new</button>
         </div>
+        <label class="check load-set" title="Turn off to keep your current settings, for example to apply one look to several patterns or to build one pitch range across a song"><input type="checkbox" name="loadSettings"> Load each pattern with its saved settings</label>
         <p class="msg" id="libMsg" role="status" aria-live="polite"></p>
         <ul class="pats" id="libList"></ul>
         <div class="row">
@@ -1737,8 +1739,19 @@ const LOOK_DEFAULTS = {
 const PLAY_DEFAULTS = { tempo: 96, loop: false, follow: true, countBeats: "0", instrument: "piano" };
 const MELODY_KEYS = ["rhythm", "pitches", "lyrics", "meter", "pickup", "pitchShow", "tempo", "keyTonic", "keyMode"];
 const STORE_KEY = "rhythm-icon-maker:v2";
+// Every look and playback setting is saved with each pattern, so a pattern comes back looking and
+// sounding the way it was saved.
+const PATTERN_SETTING_KEYS = Object.keys(Object.assign({}, LOOK_DEFAULTS, PLAY_DEFAULTS));
+function currentSettings(){ const o = {}; for (const k of PATTERN_SETTING_KEYS) o[k] = st[k]; return o; }
+// Known settings only, each the same type as its default; a setting the pattern doesn't have
+// (one added to the page after it was saved) takes its default.
+function settingsFrom(saved){
+  const defs = Object.assign({}, LOOK_DEFAULTS, PLAY_DEFAULTS), out = {};
+  for (const k of PATTERN_SETTING_KEYS) out[k] = saved && typeof saved[k] === typeof defs[k] ? saved[k] : defs[k];
+  return out;
+}
 
-let st = Object.assign({}, MELODY_DEFAULTS, LOOK_DEFAULTS, PLAY_DEFAULTS, { sheet: RIT_LINK, patName: "", currentId: null });
+let st = Object.assign({}, MELODY_DEFAULTS, LOOK_DEFAULTS, PLAY_DEFAULTS, { sheet: RIT_LINK, patName: "", currentId: null, loadSettings: true });
 try { const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (saved && typeof saved === "object"){ st = Object.assign(st, saved); if (saved.countBeats === undefined && saved.countIn) st.countBeats = "m1"; if (saved.tieStyle === undefined && typeof saved.slurStyle === "string") st.tieStyle = saved.slurStyle === "line" ? "above" : saved.slurStyle; } } catch (e) {}
 
 const $ = id => document.getElementById(id);
@@ -1874,12 +1887,14 @@ function applyFields(f, source, extra){
   if (typeof f.meter === "string") st.meter = f.meter;
   if (typeof f.micro === "boolean") st.micro = f.micro;
   st.pickup = typeof f.pickup === "string" ? f.pickup : "";
+  const withSettings = !!(f.settings && typeof f.settings === "object" && st.loadSettings !== false);
+  if (withSettings) Object.assign(st, settingsFrom(f.settings));
   if (typeof f.colorOn === "boolean") st.iconColor = f.colorOn ? "dur" : "one";
   if (typeof f.keyTonic === "string" && f.keyTonic) st.keyTonic = f.keyTonic;
   if (typeof f.keyMode === "string" && KEY_MODES[f.keyMode]) st.keyMode = f.keyMode;
   if (extra) Object.assign(st, extra);
   writeControls(); save(); render(); renderLib();
-  const parts = ["rhythm"]; if (f.pitches) parts.push("pitches"); if (f.lyrics) parts.push("lyrics");
+  const parts = ["rhythm"]; if (f.pitches) parts.push("pitches"); if (f.lyrics) parts.push("lyrics"); if (withSettings) parts.push("its settings");
   note(`${source}: ${joinParts(parts)}.`);
 }
 for (const id of ["rhythm", "pitches", "lyrics"]){
@@ -2567,7 +2582,7 @@ function renderLib(){
     const pv = document.createElement("span"); pv.textContent = patternPreview(d);
     b.append(nm, pv);
     b.addEventListener("click", () => {
-      applyFields({ rhythm: d.rhythm, pitches: d.pitches, lyrics: d.lyrics, meter: typeof d.meter === "string" ? d.meter : "", micro: !!d.micro, pickup: typeof d.pickup === "string" ? d.pickup : "", keyTonic: d.keyTonic, keyMode: d.keyMode }, `Loaded \u201C${d.name || "Untitled pattern"}\u201D`, { currentId: d.id, patName: d.name || "" });
+      applyFields({ rhythm: d.rhythm, pitches: d.pitches, lyrics: d.lyrics, meter: typeof d.meter === "string" ? d.meter : "", micro: !!d.micro, pickup: typeof d.pickup === "string" ? d.pickup : "", keyTonic: d.keyTonic, keyMode: d.keyMode, settings: d.settings }, `Loaded \u201C${d.name || "Untitled pattern"}\u201D`, { currentId: d.id, patName: d.name || "" });
     });
     const del = document.createElement("button"); del.type = "button"; del.className = "del"; del.textContent = "Delete";
     del.setAttribute("aria-label", `Delete ${d.name || "Untitled pattern"}`);
@@ -2589,7 +2604,7 @@ function renderLib(){
   }
 }
 function patternBody(name){
-  return { name, rhythm: st.rhythm, pitches: st.pitches, lyrics: st.lyrics, meter: st.meter, micro: !!st.micro, pickup: st.pickup || "", keyTonic: st.keyTonic || "C", keyMode: st.keyMode || "major", updatedAt: Date.now() };
+  return { name, rhythm: st.rhythm, pitches: st.pitches, lyrics: st.lyrics, meter: st.meter, micro: !!st.micro, pickup: st.pickup || "", keyTonic: st.keyTonic || "C", keyMode: st.keyMode || "major", settings: currentSettings(), updatedAt: Date.now() };
 }
 function defaultName(){
   const typed = $("patName").value.trim();
@@ -2642,7 +2657,7 @@ function startLocalLibrary(){
   };
   lib.remove = async id => { lib.docs = lib.docs.filter(d => d.id !== id); persist(); };
   lib.ready = true;
-  $("libHelp").textContent = "Saved in this browser on this computer. Use Export to move them to another computer or share them with someone, and Import to bring patterns in.";
+  $("libHelp").textContent = "Saved in this browser on this computer, each with all its settings. Use Export to move them to another computer or share them with someone, and Import to bring patterns in.";
   lib.docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   renderLib();
 }
@@ -2671,7 +2686,7 @@ function startLocalLibrary(){
 // Export/Import: a small JSON file of patterns, for moving them between computers or sharing them.
 $("exportPats").addEventListener("click", async () => {
   if (!lib.docs.length){ libNote("There are no saved patterns to export yet.", true); return; }
-  const patterns = lib.docs.map(d => ({ name: d.name, rhythm: d.rhythm, pitches: d.pitches || "", lyrics: d.lyrics || "", meter: d.meter || "", micro: !!d.micro, pickup: d.pickup || "", ...(d.keyTonic ? { keyTonic: d.keyTonic, keyMode: d.keyMode || "major" } : {}) }));
+  const patterns = lib.docs.map(d => ({ name: d.name, rhythm: d.rhythm, pitches: d.pitches || "", lyrics: d.lyrics || "", meter: d.meter || "", micro: !!d.micro, pickup: d.pickup || "", ...(d.keyTonic ? { keyTonic: d.keyTonic, keyMode: d.keyMode || "major" } : {}), ...(d.settings ? { settings: d.settings } : {}) }));
   const data = { app: "rhythm-icon-maker", version: 1, exported: new Date().toISOString(), patterns };
   await saveFile("rhythm-icon-patterns.json", new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
 });
@@ -2692,6 +2707,7 @@ $("importFile").addEventListener("change", async e => {
       if (!p || typeof p.rhythm !== "string" || !p.rhythm.trim()) continue;
       const body = { name: String(p.name || "Untitled pattern").slice(0, 80), rhythm: p.rhythm, pitches: String(p.pitches || ""), lyrics: String(p.lyrics || ""), meter: typeof p.meter === "string" ? p.meter : "", micro: !!p.micro, pickup: typeof p.pickup === "string" ? p.pickup : "" };
       if (typeof p.keyTonic === "string" && p.keyTonic){ body.keyTonic = p.keyTonic; body.keyMode = KEY_MODES[p.keyMode] ? p.keyMode : "major"; }
+      if (p.settings && typeof p.settings === "object") body.settings = settingsFrom(p.settings);
       // Skip patterns that are already here word for word.
       if (lib.docs.some(d => d.name === body.name && d.rhythm === body.rhythm && (d.pitches || "") === body.pitches && (d.lyrics || "") === body.lyrics)){ dup++; continue; }
       await lib.put(lib.newId(), Object.assign(body, { updatedAt: Date.now() - n }));
