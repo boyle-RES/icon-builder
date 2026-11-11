@@ -1071,13 +1071,21 @@ function buildScene(model, o, forScreen){
   const relOf = p => (maxP - p) * H;
   const edgeUp = half - 2 * S, edgeDn = halfDown - 2 * S;    // how far each sound reaches from its center
   const slurTk = Math.max(2, 2.6 * S), slurClear = 4 * S;
+  const tieIn = n => Math.min((xR(n) - xL(n)) * 0.35, 12 * S);
   const slurArc = g => {
     const a = g[0], b = g[g.length - 1], arcDir = g.style === "below" ? 1 : -1;   // -1 bulges up, 1 bulges down
     const inset = n => Math.min((xR(n) - xL(n)) * 0.3, 10 * S);
     const edge = n => arcDir < 0 ? relOf(n.p) - edgeUp - slurClear : relOf(n.p) + edgeDn + slurClear;
     // A slur carried over from the line before, or on to the next, runs off the line's edge (inside its frame).
     const reachIn = framesOn ? Math.max(3 * S, fpad - 2 * S) : 8 * S, reachOut = framesOn ? Math.max(3 * S, fpad - 2 * S) : 12 * S;
-    const x0 = g.openStart ? xL(a) - reachIn : xL(a) + inset(a), x3 = g.openEnd ? xR(b) + reachOut : xR(b) - inset(b), y0 = edge(a), y3 = edge(b);
+    // A tie runs from near the end of one icon, across the space, to near the start of the next.
+    // A slur that starts (or ends) where a tie on the same side meets its icon begins past that tie.
+    const tied = (set, n) => set.has(n) && set.get(n) === arcDir;
+    const startIn = n => tied(tieEndAt, n) ? Math.min(tieIn(n) + 2 * S, (xR(n) - xL(n)) * 0.6) : inset(n);
+    const endIn = n => tied(tieStartAt, n) ? Math.min(tieIn(n) + 2 * S, (xR(n) - xL(n)) * 0.6) : inset(n);
+    const x0 = g.openStart ? xL(a) - reachIn : g.tieSpan ? xR(a) - tieIn(a) : xL(a) + startIn(a);
+    const x3 = g.openEnd ? xR(b) + reachOut : g.tieSpan ? xL(b) + tieIn(b) : xR(b) - endIn(b);
+    const y0 = edge(a), y3 = edge(b);
     const dx = x3 - x0, dy = y3 - y0, f = 0.2;
     const ctrl = h => [[x0 + f * dx, y0 + f * dy + arcDir * h], [x0 + (1 - f) * dx, y0 + (1 - f) * dy + arcDir * h]];
     const curve = c => {
@@ -1090,7 +1098,7 @@ function buildScene(model, o, forScreen){
       return pts;
     };
     // Raise the arc until its inner edge clears every sound under it.
-    let h = Math.min(Math.max(0.14 * dx, 6 * S), 18 * S);
+    let h = g.tieSpan ? Math.min(Math.max(0.16 * dx, 2.5 * S), 6 * S) : Math.min(Math.max(0.14 * dx, 6 * S), 18 * S);
     for (let it = 0; it < 40; it++){
       const pts = curve(ctrl(h));
       let worst = 0;
@@ -1104,7 +1112,24 @@ function buildScene(model, o, forScreen){
     const outer = ctrl(h + slurTk * 4 / 3);
     return { x0, y0, x3, y3, inner: ctrl(h), outer, rim: curve(outer), dir: arcDir };
   };
-  const arcs = slurGroups.filter(g => g.style === "above" || g.style === "below").map(slurArc);
+  // Slur arcs span their whole group. Tie arcs are drawn one per tied pair, as in notation; a tie
+  // carried over a line break gets a short arc into (or out of) the edge.
+  const arcGroups = [];
+  for (const g of slurGroups){
+    if (g.style !== "above" && g.style !== "below") continue;
+    if (g.kind !== "tie"){ arcGroups.push(g); continue; }
+    const pair = (list, extra) => Object.assign(list, { kind: "tie", style: g.style, tieSpan: true }, extra);
+    if (g.openStart) arcGroups.push(pair([g[0]], { openStart: true }));
+    for (let i = 0; i < g.length - 1; i++) arcGroups.push(pair([g[i], g[i + 1]]));
+    if (g.openEnd) arcGroups.push(pair([g[g.length - 1]], { openEnd: true }));
+  }
+  const tieEndAt = new Map(), tieStartAt = new Map();   // note -> side (-1 above, 1 below) of a tie arc ending or starting on it
+  for (const g of arcGroups) if (g.tieSpan){
+    const dir = g.style === "below" ? 1 : -1;
+    if (!g.openStart) tieStartAt.set(g[0], dir);
+    if (!g.openEnd) tieEndAt.set(g[g.length - 1], dir);
+  }
+  const arcs = arcGroups.map(slurArc);
   const arcsUp = arcs.filter(ar => ar.dir < 0), arcsDn = arcs.filter(ar => ar.dir > 0);
   // The outermost point of the arcs bulging one way (dir) over [xa, xb] (rel), or null when none is there.
   const arcReach = (dir, xa, xb) => {
