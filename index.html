@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Rhythm icon maker 2.0</title>
+<title>Melody Maker</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='10' y='30' width='36' height='36' fill='%23ECB100'/%3E%3Crect x='54' y='14' width='36' height='36' fill='%23D6253C'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -229,7 +229,12 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
 .dock .layer{padding:4px 0 8px}
 .dock .slider input{max-width:none}
 
-/* Saved patterns: your own list beside the Google Sheets list */
+/* Saved patterns */
+.sync{margin-top:22px; padding-top:14px; border-top:1px solid var(--rule-soft)}
+.sync h4{margin:0; font-size:1rem}
+.sync .steps{padding-left:1.3em; margin:6px 0 0}
+.sync .steps li{margin:2px 0}
+.top h1 .ver{font-size:.8125rem; font-weight:400; color:var(--muted); letter-spacing:.02em; margin-left:6px; white-space:nowrap}
 .pane-saved{display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:18px 44px; align-items:start}
 .dock .box{border-top:0; padding-top:0; margin:0}
 
@@ -281,7 +286,7 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
 <body>
 <div class="wrap">
   <header class="top">
-    <h1>Rhythm icon maker 2.0</h1>
+    <h1>Melody Maker <span class="ver">v26.11.11.08.35</span></h1>
     <p class="status" id="status"></p>
     <div class="actions">
       <button class="btn" id="savePng" type="button">Save PNG</button>
@@ -446,7 +451,7 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
       </div>
       <div class="below">
       <ul class="msgs" id="msgs" aria-live="polite"></ul>
-        <aside class="tipbox" id="tipBox" aria-hidden="true"><p>Type rhythm, pitches and lyrics the same way as the Google Sheets template. Show the icons, a contour line, or both, play the pattern back, and save it as an image for a whiteboard file.</p><p>You can also select a pattern’s yellow and blue rows in the sheet (plus the green lyrics row, if it has one), copy them, and paste into any box here.</p></aside>
+        <aside class="tipbox" id="tipBox" aria-hidden="true"><p>Type rhythm, pitches and lyrics. Show the icons, a contour line, or both, play the pattern back, and save it as an image for a whiteboard file.</p></aside>
       </div>
     </section>
     <section class="pane pane-saved" id="pane-saved" role="tabpanel" aria-labelledby="tab-saved" hidden>
@@ -466,21 +471,25 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
           <button class="btn small" id="importPats" type="button">Import patterns</button>
           <input type="file" id="importFile" accept=".json,application/json" hidden>
         </div>
-      </div>
-
-      <div class="box" id="sheetsBox">
-        <h3>Load from Google Sheets</h3>
-        <p class="help" style="margin-top:0">Lists the patterns already typed into your Rhythm Icon Template so you can pick one.</p>
-        <div class="row">
-          <input class="cell" id="sheetLink" name="sheet" type="url" spellcheck="false" autocomplete="off" aria-label="Google Sheets link">
-          <button class="btn" id="findPats" type="button">Find patterns</button>
+        <div class="sync" id="syncBox" hidden>
+          <h4>Sync between computers</h4>
+          <p class="msg" id="syncMsg" role="status" aria-live="polite"></p>
+          <div id="syncSetup">
+            <p class="help">Keeps My patterns in a private file in your GitHub account, so they’re the same on every computer where you connect. Do this once on each computer:</p>
+            <ol class="help steps">
+              <li><a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Melody%20Maker%20sync" target="_blank" rel="noopener">Make a GitHub key</a> (it opens with only “gist” checked; set Expiration to the length you want, then Generate token).</li>
+              <li>Copy the key, paste it here, and choose Connect.</li>
+            </ol>
+            <div class="row">
+              <input class="cell" id="syncToken" type="password" autocomplete="off" spellcheck="false" placeholder="GitHub key (starts with ghp_)" aria-label="GitHub key">
+              <button class="btn" id="syncConnect" type="button">Connect</button>
+            </div>
+          </div>
+          <div class="row" id="syncOn" hidden>
+            <button class="btn small" id="syncNow" type="button">Sync now</button>
+            <button class="btn small" id="syncOff" type="button">Disconnect this computer</button>
+          </div>
         </div>
-        <div class="row" id="tabRow" hidden>
-          <label for="tabSelect" style="align-self:center;font-weight:700;font-size:.9375rem">Tab</label>
-          <select id="tabSelect"></select>
-        </div>
-        <p class="msg" id="sheetMsg" role="status" aria-live="polite"></p>
-        <ul class="pats" id="pats"></ul>
       </div>
     </section>
     <section class="pane groups" id="pane-icons" role="tabpanel" aria-labelledby="tab-icons" hidden>
@@ -1668,7 +1677,7 @@ function drawCanvas(sc, ratio, transparent){
   return c;
 }
 
-// --- Reading the template's rows (from Sheets or a copy-paste) ---
+// --- Reading the template's rows (from a copy-paste) ---
 function gridToFields(rhy, pit, lyr, startCol){
   const R = [], P = [], L = [];
   for (let j = startCol; j < rhy.length; j++){
@@ -1723,7 +1732,6 @@ function fieldsFromPaste(text){
 // ===================== END CORE =====================
 
 // ===================== PAGE =====================
-const RIT_LINK = "";
 const MELODY_DEFAULTS = {
   rhythm: "1 1 1 1 1 1 2 | 1 1 1 1 1 1 2",
   pitches: "C C G4 G A A G F F E E D D C",
@@ -1751,7 +1759,7 @@ function settingsFrom(saved){
   return out;
 }
 
-let st = Object.assign({}, MELODY_DEFAULTS, LOOK_DEFAULTS, PLAY_DEFAULTS, { sheet: RIT_LINK, patName: "", currentId: null, loadSettings: true });
+let st = Object.assign({}, MELODY_DEFAULTS, LOOK_DEFAULTS, PLAY_DEFAULTS, { patName: "", currentId: null, loadSettings: true });
 try { const saved = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); if (saved && typeof saved === "object"){ st = Object.assign(st, saved); if (saved.countBeats === undefined && saved.countIn) st.countBeats = "m1"; if (saved.tieStyle === undefined && typeof saved.slurStyle === "string") st.tieStyle = saved.slurStyle === "line" ? "above" : saved.slurStyle; } } catch (e) {}
 
 const $ = id => document.getElementById(id);
@@ -1858,7 +1866,6 @@ function setExportEnabled(on){ for (const id of ["savePng", "saveSvg", "copyImg"
 
 root.addEventListener("input", e => {
   const el = e.target;
-  if (el.id === "sheetLink"){ st.sheet = el.value; save(); return; }
   if (el.id === "patName"){ st.patName = el.value; save(); return; }
   if (!el.name) return;
   readControl(el);
@@ -2100,7 +2107,6 @@ function note(text){ noticeEl.textContent = text; clearTimeout(noteTimer); noteT
 const claudeApi = window.claude && typeof window.claude.use === "function" ? window.claude : null;
 const useCap = name => claudeApi ? claudeApi.use(name).catch(() => null) : Promise.resolve(null);
 const downloadsP = useCap("downloads");
-const mcpP = useCap("mcp");
 
 // ---- Playback ----
 const player = { ctx: null, master: null, playing: false, nodes: [], start: 0, sps: 0, passDur: 0, scheduled: -1, endPass: null, raf: 0, events: [], pitched: true, waves: null, noise: null };
@@ -2639,6 +2645,136 @@ $("saveChanges").addEventListener("click", async () => {
   } catch (e){ libNote(dbErrorText(e), true); }
   saving = false;
 });
+// ---- Sync between computers: My patterns kept in a private GitHub Gist ----
+// Each computer keeps its own copy (so the page still works offline); when a
+// GitHub key is connected, the copy is merged with the gist on open, after
+// every save or delete, and whenever the page comes back into view.
+const SYNC_TOKEN_KEY = "melody-maker:gh-token", SYNC_GIST_KEY = "melody-maker:gh-gist", TOMB_KEY = "melody-maker:deleted";
+const SYNC_FILE = "melody-maker-patterns.json";
+function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v){ try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} }
+function tombs(){ try { const t = JSON.parse(lsGet(TOMB_KEY) || "{}"); return t && typeof t === "object" ? t : {}; } catch (e) { return {}; } }
+function tombstone(id){ const t = tombs(); t[id] = Date.now(); lsSet(TOMB_KEY, JSON.stringify(t)); }
+const gistSync = (() => {
+  const API = "https://api.github.com";
+  let persistLocal = null, chain = Promise.resolve(), pending = 0, lastSync = 0;
+  const msg = (text, isErr) => { const m = $("syncMsg"); m.textContent = text; m.className = "msg" + (isErr ? " err" : ""); };
+  const token = () => lsGet(SYNC_TOKEN_KEY);
+  function showUi(){
+    const on = !!token();
+    $("syncBox").hidden = false; $("syncSetup").hidden = on; $("syncOn").hidden = !on;
+    $("libHelp").textContent = on
+      ? "Saved on this computer and synced through your GitHub account, so they\u2019re here on every computer you connect. Each pattern keeps all its settings."
+      : "Saved in this browser on this computer, each with all its settings. Connect sync below to have them on your other computers too, or use Export and Import.";
+  }
+  async function gh(path, opts = {}){
+    const res = await fetch(API + path, Object.assign({ cache: "no-store" }, opts, {
+      headers: Object.assign({ "Accept": "application/vnd.github+json", "Authorization": "Bearer " + token(), "X-GitHub-Api-Version": "2022-11-28" }, opts.body ? { "Content-Type": "application/json" } : {})
+    }));
+    if (!res.ok){
+      const e = new Error("GitHub " + res.status); e.status = res.status;
+      e.scopes = res.headers.get("x-oauth-scopes"); throw e;
+    }
+    return res.status === 204 ? null : res.json();
+  }
+  function errText(e){
+    if (e && e.status === 401) return "GitHub didn\u2019t accept the key. It may be mistyped or expired: make a new key, choose Disconnect if you\u2019re connected, and connect again.";
+    if (e && (e.status === 403 || e.status === 404)) return "The key can\u2019t open your gists. Make a key with \u201Cgist\u201D checked, then connect again.";
+    if (e && e.status === 422) return "GitHub couldn\u2019t save the patterns file. Try Sync now in a moment.";
+    return navigator.onLine === false ? "You\u2019re offline. Patterns are saved on this computer and will sync when you\u2019re back online." : "GitHub couldn\u2019t be reached. Patterns are saved on this computer; choose Sync now to try again.";
+  }
+  async function findGist(){
+    let id = lsGet(SYNC_GIST_KEY);
+    if (id){ try { return await gh("/gists/" + id); } catch (e) { if (e.status !== 404) throw e; lsSet(SYNC_GIST_KEY, null); } }
+    for (let page = 1; page <= 10; page++){
+      const list = await gh(`/gists?per_page=100&page=${page}`);
+      const hit = list.find(g => g.files && g.files[SYNC_FILE]);
+      if (hit){ lsSet(SYNC_GIST_KEY, hit.id); return gh("/gists/" + hit.id); }
+      if (list.length < 100) break;
+    }
+    return null;
+  }
+  async function readRemote(g){
+    const f = g && g.files && g.files[SYNC_FILE];
+    if (!f) return { patterns: [], deleted: {} };
+    let text = f.content;
+    if (f.truncated){ text = await (await fetch(f.raw_url, { cache: "no-store" })).text(); }
+    try { const d = JSON.parse(text || "{}"); return { patterns: Array.isArray(d.patterns) ? d.patterns : [], deleted: d.deleted && typeof d.deleted === "object" ? d.deleted : {} }; }
+    catch (e) { return { patterns: [], deleted: {} }; }
+  }
+  // Newest edit of each pattern wins; a delete wins over edits made before it.
+  function merge(remote){
+    const deleted = Object.assign({}, remote.deleted);
+    for (const [id, at] of Object.entries(tombs())) deleted[id] = Math.max(deleted[id] || 0, at);
+    const byId = new Map();
+    for (const d of remote.patterns.concat(lib.docs)){
+      if (!d || !d.id || typeof d.rhythm !== "string") continue;
+      const have = byId.get(d.id);
+      if (!have || (d.updatedAt || 0) > (have.updatedAt || 0)) byId.set(d.id, d);
+    }
+    const docs = [...byId.values()].filter(d => !(deleted[d.id] >= (d.updatedAt || 0)));
+    // Forget deletes older than 90 days so the file doesn't grow forever.
+    const cutoff = Date.now() - 90 * 864e5;
+    for (const id of Object.keys(deleted)) if (deleted[id] < cutoff) delete deleted[id];
+    return { docs, deleted };
+  }
+  async function syncOnce(){
+    if (!token()) return;
+    msg("Syncing\u2026");
+    let g = await findGist();
+    const { docs, deleted } = merge(await readRemote(g));
+    const before = JSON.stringify(lib.docs.map(d => [d.id, d.updatedAt]).sort());
+    lib.docs = docs; lsSet(TOMB_KEY, JSON.stringify(deleted));
+    persistLocal();
+    if (before !== JSON.stringify(lib.docs.map(d => [d.id, d.updatedAt]).sort()) && st.currentId && !lib.docs.some(d => d.id === st.currentId)){ st.currentId = null; save(); renderLib(); }
+    const content = JSON.stringify({ app: "melody-maker", version: 1, saved: new Date().toISOString(), patterns: lib.docs, deleted }, null, 1);
+    const old = g && g.files && g.files[SYNC_FILE];
+    if (!g){
+      g = await gh("/gists", { method: "POST", body: JSON.stringify({ description: "Melody Maker saved patterns", public: false, files: { [SYNC_FILE]: { content } } }) });
+      lsSet(SYNC_GIST_KEY, g.id);
+    } else if (!old || JSON.stringify(JSON.parse(old.content || "{}").patterns || []) !== JSON.stringify(lib.docs) || Object.keys(deleted).length !== Object.keys((JSON.parse(old.content || "{}").deleted) || {}).length){
+      await gh("/gists/" + g.id, { method: "PATCH", body: JSON.stringify({ files: { [SYNC_FILE]: { content } } }) });
+    }
+    lastSync = Date.now();
+    msg(`Synced with GitHub at ${new Date(lastSync).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
+  }
+  // Runs one sync at a time; asks made while one is running fold into the next.
+  function sync(){
+    if (!token() || pending) return chain;
+    pending = 1;
+    chain = chain.then(() => { pending = 0; return syncOnce(); }).catch(e => { pending = 0; msg(errText(e), true); });
+    return chain;
+  }
+  function start(persist){
+    persistLocal = persist;
+    const origPut = lib.put, origRemove = lib.remove;
+    lib.put = async (id, body) => { await origPut(id, body); sync(); };
+    lib.remove = async id => { await origRemove(id); sync(); };
+    showUi();
+    $("syncConnect").addEventListener("click", async () => {
+      const t = $("syncToken").value.trim();
+      if (!t){ msg("Paste your GitHub key first.", true); return; }
+      lsSet(SYNC_TOKEN_KEY, t); $("syncToken").value = "";
+      $("syncConnect").disabled = true;
+      try {
+        const u = await gh("/user");
+        showUi(); await sync();
+        if (!$("syncMsg").classList.contains("err")) msg(`Connected to GitHub as ${u.login}. ${$("syncMsg").textContent}`);
+      } catch (e){ lsSet(SYNC_TOKEN_KEY, null); showUi(); msg(errText(e), true); }
+      $("syncConnect").disabled = false;
+    });
+    $("syncNow").addEventListener("click", () => sync());
+    $("syncOff").addEventListener("click", () => {
+      lsSet(SYNC_TOKEN_KEY, null); lsSet(SYNC_GIST_KEY, null); showUi();
+      msg("This computer is disconnected. Its patterns stay here, and your other computers keep syncing.");
+    });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - lastSync > 15000) sync(); });
+    window.addEventListener("online", () => sync());
+    if (token()) sync();
+  }
+  return { start, sync };
+})();
+
 function startLocalLibrary(){
   let docs = [];
   try { docs = JSON.parse(localStorage.getItem(LIB_KEY) || "[]"); if (!Array.isArray(docs)) docs = []; } catch (e) { docs = []; }
@@ -2655,8 +2791,9 @@ function startLocalLibrary(){
     if (i >= 0) lib.docs[i] = doc; else lib.docs.push(doc);
     persist();
   };
-  lib.remove = async id => { lib.docs = lib.docs.filter(d => d.id !== id); persist(); };
+  lib.remove = async id => { lib.docs = lib.docs.filter(d => d.id !== id); tombstone(id); persist(); };
   lib.ready = true;
+  gistSync.start(persist);
   $("libHelp").textContent = "Saved in this browser on this computer, each with all its settings. Use Export to move them to another computer or share them with someone, and Import to bring patterns in.";
   lib.docs.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   renderLib();
@@ -2716,93 +2853,6 @@ $("importFile").addEventListener("change", async e => {
   } catch (err) { libNote(dbErrorText(err), true); }
   const dupText = dup ? ` ${dup} ${dup === 1 ? "was" : "were"} already here.` : "";
   note(n ? `Imported ${n} ${n === 1 ? "pattern" : "patterns"}.${dupText}` : (dup ? `All ${dup} patterns in that file were already here.` : "That file had no patterns in it."));
-});
-
-// ---- Google Sheets ----
-if (!claudeApi) $("sheetsBox").hidden = true;   // reading Google Sheets needs Claude's connector
-const sheetMsg = $("sheetMsg"), patsEl = $("pats"), tabSel = $("tabSelect"), findBtn = $("findPats");
-let sheetId = null;
-
-function sheetNote(text, isErr){ sheetMsg.textContent = text; sheetMsg.className = "msg" + (isErr ? " err" : ""); }
-function extractId(s){
-  const t = String(s || "").trim();
-  const m = /\/spreadsheets\/d\/([A-Za-z0-9_-]{20,})/.exec(t);
-  if (m) return m[1];
-  return /^[A-Za-z0-9_-]{25,}$/.test(t) ? t : null;
-}
-function payloadOf(res){
-  let p = res ? res.payload : undefined;
-  if (p === undefined && res && Array.isArray(res.content) && res.content[0] && typeof res.content[0].text === "string") p = res.content[0].text;
-  if (typeof p === "string"){ try { p = JSON.parse(p); } catch (e) {} }
-  return p && typeof p === "object" ? p : {};
-}
-function sheetErrorText(e){
-  switch (e && e.code){
-    case "needs_reauth": return "Google Sheets needs to be reconnected. Reconnect it in claude.ai Settings \u2192 Connectors, then try again.";
-    case "server_not_connected": return "Google Sheets isn\u2019t connected for your account. Add it in claude.ai Settings \u2192 Connectors, then try again.";
-    case "selection_required": return "You have more than one Google Sheets connector. Choose one when claude.ai asks, then try again.";
-    case "approval_required":
-    case "not_in_manifest": return "This page needs your OK to read Google Sheets. Click Find patterns again and choose Allow when asked.";
-    case "blocked_by_policy": return "Your organization doesn\u2019t allow this page to read Google Sheets.";
-    case "server_unavailable": return "Google Sheets didn\u2019t answer. Wait a moment and click Find patterns again.";
-    case "tool_error": return "Google Sheets couldn\u2019t open that file. Check the link, and that your account can open the sheet.";
-    case "not_granted":
-    case "capability_disabled":
-    case "capability_removed": return "Loading from Google Sheets isn\u2019t available in this view. Copy the rows from the sheet and paste them into the Rhythm box instead.";
-    default: return "Google Sheets couldn\u2019t be read just now. Try again, or copy the rows from the sheet and paste them into the Rhythm box.";
-  }
-}
-function quoteTab(name){ return "'" + String(name).replace(/'/g, "''") + "'"; }
-
-async function loadTab(m, tab){
-  patsEl.innerHTML = "";
-  sheetNote(`Reading \u201C${tab}\u201D\u2026`);
-  const res = await m.callTool("Google Sheets", "get_values", { spreadsheetId: sheetId, range: quoteTab(tab) });
-  const pats = patternsFromValues(payloadOf(res).values);
-  if (!pats.length){ sheetNote(`No patterns on \u201C${tab}\u201D yet. Patterns are the rows labeled \u201CPattern 1\u201D, \u201CPattern 2\u201D and so on, with something typed in the yellow boxes.`); return; }
-  sheetNote(`${pats.length} ${pats.length === 1 ? "pattern" : "patterns"} on \u201C${tab}\u201D. Pick one to draw it; save it under My patterns to keep it here.`);
-  for (const p of pats){
-    const li = document.createElement("li"); li.className = "solo";
-    const b = document.createElement("button"); b.type = "button"; b.className = "load";
-    const nameEl = document.createElement("b"); nameEl.textContent = p.name;
-    const prev = document.createElement("span"); prev.textContent = patternPreview(p);
-    b.append(nameEl, prev);
-    b.addEventListener("click", () => {
-      applyFields(p, `Loaded ${p.name}`, { currentId: null, patName: p.name });
-      $("stage").scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-    });
-    li.appendChild(b); patsEl.appendChild(li);
-  }
-}
-
-findBtn.addEventListener("click", async () => {
-  const id = extractId($("sheetLink").value);
-  if (!id){ sheetNote("Paste the sheet\u2019s link from your browser\u2019s address bar (it has /d/ in it), or just its ID.", true); return; }
-  findBtn.disabled = true; patsEl.innerHTML = ""; sheetNote("Connecting to Google Sheets\u2026");
-  try {
-    const m = await mcpP;
-    if (!m){ sheetNote("Loading from Google Sheets works when this page is open in Claude. You can still copy the rows from the sheet and paste them into the Rhythm box.", true); return; }
-    sheetId = id;
-    const meta = await m.callTool("Google Sheets", "get_spreadsheet", { spreadsheetId: id, fields: ["sheets.properties.title"] });
-    const tabs = (payloadOf(meta).sheets || []).map(s => s && s.properties && s.properties.title).filter(Boolean);
-    if (!tabs.length){ sheetNote("That file has no tabs that could be read.", true); return; }
-    const pick = tabs.includes("Rhythm Builder") ? "Rhythm Builder" : (tabs.find(t => t !== "Free Draw") || tabs[0]);
-    tabSel.innerHTML = "";
-    for (const t of tabs){ const op = document.createElement("option"); op.value = t; op.textContent = t; tabSel.appendChild(op); }
-    tabSel.value = pick;
-    $("tabRow").hidden = tabs.length < 2;
-    await loadTab(m, pick);
-  } catch (e){
-    sheetNote(sheetErrorText(e), true);
-  } finally {
-    findBtn.disabled = false;
-  }
-});
-tabSel.addEventListener("change", async () => {
-  const m = await mcpP;
-  if (!m || !sheetId) return;
-  tabSel.disabled = true;
-  try { await loadTab(m, tabSel.value); } catch (e){ sheetNote(sheetErrorText(e), true); } finally { tabSel.disabled = false; }
 });
 
 writeControls();
