@@ -263,7 +263,7 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
       <div class="field">
         <label for="rhythm">Rhythm</label>
         <textarea class="cell rhythm" id="rhythm" name="rhythm" rows="2" spellcheck="false" autocomplete="off"></textarea>
-        <p class="help">Shorts per sound: 0.5 = sixteenth, 1 = short, 1.5 = dotted eighth, 2 = long, 3 = dotted quarter, 4 = lo-ong, 8 = whole. Type R and a length for a rest, such as R1. Bar lines (|) are skipped.</p>
+        <p class="help">Shorts per sound: 0.5 = sixteenth, 1 = short, 1.5 = dotted eighth, 2 = long, 3 = dotted quarter, 4 = lo-ong, 8 = whole. Type R and a length for a rest, such as R1. Put ~ between two sounds to slur or tie them, such as 8~ 8. Type // where a new line of icons should start. Bar lines (|) are skipped.</p>
       </div>
 
       <div class="field">
@@ -428,6 +428,22 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
         </div>
       </div>
 
+      <h3>Slurs and ties</h3>
+      <div class="layer"><label class="check big"><input type="checkbox" name="showSlurs"> Show slurs and ties</label></div>
+      <div class="opt slur-opt">
+        <span class="name" id="slurStyleL">Style</span>
+        <div class="seg" role="radiogroup" aria-labelledby="slurStyleL">
+          <input type="radio" name="slurStyle" id="ss-above" value="above"><label for="ss-above">Arc above</label>
+          <input type="radio" name="slurStyle" id="ss-below" value="below"><label for="ss-below">Arc below</label>
+          <input type="radio" name="slurStyle" id="ss-join" value="join"><label for="ss-join">Joined icons</label>
+        </div>
+      </div>
+      <div class="opt">
+        <span class="name">Held syllables</span>
+        <label class="check"><input type="checkbox" name="slurHeld"> Slur the notes under a held syllable (_)</label>
+      </div>
+      <p class="help">Joined notes play without a new attack. On the same pitch they play as one held sound, like a tie. Joined icons need icons on; with only the line showing, an arc is drawn instead.</p>
+
       <h3>Beat bars</h3>
       <div class="opt">
         <span class="name">Macrobeats</span>
@@ -495,6 +511,27 @@ body.present .present-bar .btn.solid{background:#1D2125; color:#FFFFFF}
           <p class="help" style="margin:0">With “Same for the whole song,” every pattern is drawn on the same pitch range, so frames and icon heights match from pattern to pattern. Load each of the song’s patterns and choose Include this pattern; the range grows to cover them all.</p>
         </div>
       </div>
+
+      <h3>Lines</h3>
+      <div class="opt">
+        <label class="name" for="lineMeasures">Measures per line</label>
+        <div>
+          <select class="pick" id="lineMeasures" name="lineMeasures">
+            <option value="0">All on one line</option>
+            <option value="1">1 measure</option>
+            <option value="2">2 measures</option>
+            <option value="3">3 measures</option>
+            <option value="4">4 measures</option>
+            <option value="6">6 measures</option>
+            <option value="8">8 measures</option>
+          </select>
+        </div>
+      </div>
+      <div class="opt" id="lineGapRow">
+        <label class="name" for="lineGap">Space between lines</label>
+        <div class="slider"><input type="range" id="lineGap" name="lineGap" min="0" max="96" step="4"><output for="lineGap" id="lineGapOut"></output></div>
+      </div>
+      <p class="help">Lines count measures from the first downbeat, so a pickup leads into the first line. To start a line anywhere else, type // in Rhythm, such as 8 8 // 2 2 4. Every line uses the song’s whole pitch range, so the same pitch sits at the same height on every line.</p>
 
       <h3>Layout</h3>
       <div class="opt">
@@ -593,9 +630,14 @@ function parsePitch(tok){
 // unnumbered note lands within -5..+6 half steps of the note before it.
 function buildModel(rStr, pStr, lStr){
   const msgs = [];
-  const rt = splitTokens(rStr), items = [], badR = [];
+  // ~ joins a sound to the next one: a slur, or a tie when the pitch stays the same.
+  // // starts a new line of icons before the next sound.
+  const rt = splitTokens(String(rStr || "").replace(/~/g, " ~ ").replace(/\/+/g, " // ")), items = [], badR = [];
+  let strayTilde = 0;
   for (let i = 0; i < rt.length; i++){
     let t = rt[i];
+    if (t === "~"){ const last = items[items.length - 1]; if (last) last.slurNext = true; else strayTilde++; continue; }
+    if (t === "//"){ const last = items[items.length - 1]; if (last) last.breakAfter = true; continue; }
     if (/^[Rr]$/.test(t) && i + 1 < rt.length && NUM_RE.test(rt[i + 1])) t = "R" + rt[++i];
     const m = RHY_RE.exec(t);
     const d = m ? Number(m[2]) : NaN;
@@ -609,6 +651,12 @@ function buildModel(rStr, pStr, lStr){
     if (total + it.dur > MAX_SHORTS){ msgs.push({ level: "warn", text: `The drawing stops at ${MAX_SHORTS} shorts.` }); break; }
     it.t0 = total; total += it.dur; it.t1 = total; notes.push(it);
   }
+  notes.forEach((n, i) => {
+    if (!n.slurNext) return;
+    const nx = notes[i + 1];
+    if (n.rest || !nx || nx.rest){ n.slurNext = false; strayTilde++; }
+  });
+  if (strayTilde) msgs.push({ level: "warn", text: `Rhythm: ~ joins two sounds that sit side by side, so ${strayTilde === 1 ? "one ~ next to a rest or at an end was" : strayTilde + " of them next to rests or at an end were"} skipped.` });
 
   const badP = [];
   const pTok = splitTokens(pStr).map(t => {
@@ -651,7 +699,7 @@ function buildModel(rStr, pStr, lStr){
     if (tok === undefined || tok === "-") return;
     if (tok === "_"){
       const last = syl[syl.length - 1];
-      if (last && last.last === k - 1) last.last = k;
+      if (last && last.last === k - 1){ last.last = k; sounds[k - 1].holdNext = true; }
       return;
     }
     syl.push({ text: tok.replace(/\u00A0/g, " "), first: k, last: k });
@@ -663,7 +711,28 @@ function buildModel(rStr, pStr, lStr){
   let minP = Infinity, maxP = -Infinity;
   notes.forEach(n => { minP = Math.min(minP, n.p); maxP = Math.max(maxP, n.p); });
   if (!notes.length){ minP = maxP = 60; }
-  return { notes, sounds, total, hasPitch: !!firstNamed, spellMap, syl, msgs, minP, maxP };
+  const breaks = notes.filter((n, i) => n.breakAfter && i < notes.length - 1).map(n => n.t1);
+  return { notes, sounds, total, hasPitch: !!firstNamed, spellMap, syl, msgs, minP, maxP, breaks };
+}
+
+// Which sounds join the next one: ~ in the rhythm, or a held syllable (_) when that option is on.
+// Only sounds side by side can join; a rest between them breaks it.
+function slurLinks(model, o){
+  const s = model.sounds, out = [];
+  for (let k = 0; k < s.length; k++){
+    const nx = s[k + 1];
+    out.push(!!nx && !!(s[k].slurNext || (o.slurHeld !== false && s[k].holdNext)) && Math.abs(s[k].t1 - nx.t0) < 1e-9);
+  }
+  return out;
+}
+function slurGroupsOf(model, o){
+  const links = slurLinks(model, o), groups = [];
+  let cur = null;
+  model.sounds.forEach((n, k) => {
+    cur = cur ? cur.concat(n) : [n];
+    if (!links[k]){ if (cur.length > 1) groups.push(cur); cur = null; }
+  });
+  return groups;
 }
 
 function spellOf(model, midi){
@@ -767,9 +836,77 @@ function buildScene(model, o, forScreen){
   const hasLyrics = model.syl.length > 0;
   const xL = n => xStart(n.t0), xR = n => xEnd(n.t1);
 
+  // Slurs and ties. Arcs are worked out relative to the highest pitch (rel = 0 at its center), so
+  // the layout can make room for them, and for words they push aside, before anything is placed.
+  const slurOn = o.showSlurs !== false;
+  const slurGroups = slurOn ? slurGroupsOf(model, o) : [];
+  // On one line of a longer song, a slur can carry over from the line before, or on to the next.
+  if (slurOn && model.sounds.length){
+    const s0 = model.sounds[0], sN = model.sounds[model.sounds.length - 1];
+    if (model.contIn){ const g = slurGroups.find(g => g[0] === s0); if (g) g.openStart = true; else slurGroups.unshift(Object.assign([s0], { openStart: true })); }
+    if (model.contOut){ const g = slurGroups.find(g => g[g.length - 1] === sN); if (g) g.openEnd = true; else slurGroups.push(Object.assign([sN], { openEnd: true })); }
+  }
+  const joinMode = slurOn && o.slurStyle === "join" && icons;
+  const arcsOn = slurOn && !joinMode;
+  const arcDir = o.slurStyle === "below" ? 1 : -1;          // -1 bulges up, 1 bulges down
+  const relOf = p => (maxP - p) * H;
+  const edgeUp = half - 2 * S, edgeDn = halfDown - 2 * S;    // how far each sound reaches from its center
+  const slurTk = Math.max(2, 2.6 * S), slurClear = 4 * S;
+  const slurArc = g => {
+    const a = g[0], b = g[g.length - 1];
+    const inset = n => Math.min((xR(n) - xL(n)) * 0.3, 10 * S);
+    const edge = n => arcDir < 0 ? relOf(n.p) - edgeUp - slurClear : relOf(n.p) + edgeDn + slurClear;
+    // A slur carried over from the line before, or on to the next, runs off the line's edge (inside its frame).
+    const reachIn = framesOn ? Math.max(3 * S, fpad - 2 * S) : 8 * S, reachOut = framesOn ? Math.max(3 * S, fpad - 2 * S) : 12 * S;
+    const x0 = g.openStart ? xL(a) - reachIn : xL(a) + inset(a), x3 = g.openEnd ? xR(b) + reachOut : xR(b) - inset(b), y0 = edge(a), y3 = edge(b);
+    const dx = x3 - x0, dy = y3 - y0, f = 0.2;
+    const ctrl = h => [[x0 + f * dx, y0 + f * dy + arcDir * h], [x0 + (1 - f) * dx, y0 + (1 - f) * dy + arcDir * h]];
+    const curve = c => {
+      const pts = [];
+      for (let i = 0; i <= 64; i++){
+        const t = i / 64, u = 1 - t;
+        pts.push([u * u * u * x0 + 3 * u * u * t * c[0][0] + 3 * u * t * t * c[1][0] + t * t * t * x3,
+                  u * u * u * y0 + 3 * u * u * t * c[0][1] + 3 * u * t * t * c[1][1] + t * t * t * y3]);
+      }
+      return pts;
+    };
+    // Raise the arc until its inner edge clears every sound under it.
+    let h = Math.min(Math.max(0.14 * dx, 6 * S), 18 * S);
+    for (let it = 0; it < 40; it++){
+      const pts = curve(ctrl(h));
+      let worst = 0;
+      for (const n of g){
+        const lim = edge(n) - arcDir * slurClear * 0.4;
+        for (const p of pts) if (p[0] >= xL(n) && p[0] <= xR(n)) worst = Math.max(worst, arcDir < 0 ? p[1] - lim : lim - p[1]);
+      }
+      if (worst <= 0.25) break;
+      h += worst * 1.4 + 0.5;
+    }
+    const outer = ctrl(h + slurTk * 4 / 3);
+    return { x0, y0, x3, y3, inner: ctrl(h), outer, rim: curve(outer) };
+  };
+  const arcs = arcsOn ? slurGroups.map(slurArc) : [];
+  // The arcs' outermost point over [xa, xb] (rel), or null when no arc is there.
+  const arcReach = (xa, xb) => {
+    let best = null;
+    for (const ar of arcs){
+      const pts = ar.rim, lo = pts[0][0], hiX = pts[pts.length - 1][0];
+      if (xb < lo || xa > hiX) continue;
+      const yAt = x => { for (let i = 1; i < pts.length; i++) if (pts[i][0] >= x){ const [ax, ay] = pts[i - 1], [bx, by] = pts[i]; return bx === ax ? by : ay + (by - ay) * (x - ax) / (bx - ax); } return pts[pts.length - 1][1]; };
+      const ys = pts.filter(p => p[0] >= xa && p[0] <= xb).map(p => p[1]);
+      if (xa >= lo) ys.push(yAt(xa));
+      if (xb <= hiX) ys.push(yAt(xb));
+      for (const y of ys) best = best === null ? y : (arcDir < 0 ? Math.min(best, y) : Math.max(best, y));
+    }
+    return best;
+  };
+  // Words (rel baselines) that would sit where an arc is move past it.
+  const clearAbove = (base, xa, xb, gap) => { if (!arcs.length || arcDir > 0) return base; const r = arcReach(xa, xb); return r === null ? base : Math.min(base, r - gap); };
+  const clearBelow = (base, xa, xb, gap) => { if (!arcs.length || arcDir < 0) return base; const r = arcReach(xa, xb); return r === null ? base : Math.max(base, r + gap); };
+
   // Lyrics start at the left edge of their first icon. Shrink them (never below 60%) until
   // each syllable ends before the next syllable's icon begins.
-  let lyrSize = 15 * S;
+  let lyrSize = 15 * S, lyrFit = null;
   if (hasLyrics){
     let fit = Infinity;
     model.syl.forEach((sy, i) => {
@@ -777,7 +914,8 @@ function buildScene(model, o, forScreen){
       const end = next ? xL(model.sounds[next.first]) - 3 * S : xR(model.sounds[sy.last]) + padX * 0.75;
       fit = Math.min(fit, (end - start) / (Math.max(1, sy.text.length) * lyricFont(o).w));
     });
-    lyrSize = Math.max(9 * S, Math.min(15 * S, fit));
+    lyrFit = Math.max(9 * S, Math.min(15 * S, fit));
+    lyrSize = o.lyrFit != null ? o.lyrFit : lyrFit;   // every line of a song uses one size
     // Lyric size: 100% is the size that fits; larger is allowed to run into the next syllable.
     lyrSize *= (o.lyricScale || 100) / 100;
   }
@@ -794,17 +932,45 @@ function buildScene(model, o, forScreen){
   const rowBelow = lock ? lyricsOn && o.lyricsPos === "below" : hasLyrics && o.lyricsPos === "below";
   const followSpace = lock ? lyricsOn && o.lyricsPos === "follow" : follow;
   const namesSpace = lock ? !!o.names : namesOn;
+  // Room for arcs, and for words lifted over (or dropped under) them. A locked layout always keeps
+  // the same room, so fragments with and without slurs still come out the same size.
+  const nameW = s => String(s).length * nameSize * 0.62;
+  const sylSpan = sy => { const x0 = xL(model.sounds[sy.first]); return [x0, x0 + Math.max(1, sy.text.length) * lyricFont(o).w * lyrSize]; };
+  const sylHi = sy => { const [x0, reach] = sylSpan(sy); return Math.max(...model.sounds.slice(sy.first, sy.last + 1).filter(n => xL(n) < reach).map(n => n.p)); };
+  const lyrGap = lyrSize * 0.25 + 2 * S, nameGapUp = 2.5 * S, nameGapDn = 2 * S + nameSize * 0.78;
+  const nameLabs = namesOn ? labelsFor(model, model.labelPitches || [...new Set(model.sounds.map(n => n.p))]) : null;
+  let slurTop = 0, slurBottom = 0;
+  if (arcsOn){
+    const room = lock && o.slurRoom !== false ? 24 * S : 0;
+    let need = 0;
+    if (arcDir < 0){
+      for (const ar of arcs) need = Math.max(need, -half - Math.min(...ar.rim.map(p => p[1])) + 2 * S);
+      const std = -half - 3 * S;   // the highest a word normally sits
+      if (follow) model.syl.forEach(sy => { const [a, b] = sylSpan(sy); need = Math.max(need, std - clearAbove(relOf(sylHi(sy)) - half - 3 * S, a, b, lyrGap)); });
+      else if (namesOn) model.sounds.forEach(n => { need = Math.max(need, std - clearAbove(relOf(n.p) - half - 3 * S, xL(n), xL(n) + nameW(nameLabs.get(n.p)), nameGapUp)); });
+      slurTop = Math.max(need, room);
+    } else {
+      const base = relOf(minP) + halfDown;
+      for (const ar of arcs) need = Math.max(need, Math.max(...ar.rim.map(p => p[1])) - base + 2 * S);
+      if (followSpace && namesOn){
+        const std = base + nameSize * 0.8 + 2 * S;
+        model.sounds.forEach(n => { need = Math.max(need, clearBelow(relOf(n.p) + halfDown + nameSize * 0.8 + 2 * S, xL(n), xL(n) + nameW(nameLabs.get(n.p)), nameGapDn) - std); });
+      }
+      slurBottom = Math.max(need, room);
+    }
+  }
   const padF = 8 * S;   // room inside a frame
-  let y = padY, lyrY = null;
+  let y = (o.originY || 0) + padY, lyrY = null;   // originY: where this line starts on a page of lines
   if (rowAbove){ lyrY = y + spaceLyr; y += spaceLyr * 1.3 + 6 * S; }
   const frameTop = y;
   if (framesOn) y += padF;
   if (followSpace) y += spaceLyr * 1.1 + 3 * S;
   else if (namesSpace) y += nameSize + 6 * S;
+  y += slurTop;
   const top = y + half;
   // Whole-pixel centers keep every icon edge crisp (icons are always an even number of pixels tall).
   const yOf = p => Math.round(top + (maxP - p) * H);
-  y = yOf(minP) + halfDown;
+  y = yOf(minP) + halfDown + slurBottom;
   if (followSpace && namesSpace) y += nameSize + 6 * S;
   if (rowBelow){ y += 6 * S; lyrY = y + spaceLyr; y += spaceLyr * 1.3; }
   let microY = null, macroY = null;
@@ -822,7 +988,7 @@ function buildScene(model, o, forScreen){
   const lineColor = n => o.lineColor === "dur" ? durColor(n.dur) : o.lineInk;
   const iconColor = n => o.iconColor === "dur" ? durColor(n.dur) : o.iconInk;
 
-  if (forScreen && o.grid) items.push({ t: "grid", ox: left, oy: top + off, cw: 8 * S, rh: H, screenOnly: true });
+  if (forScreen && o.grid) items.push({ t: "grid", ox: left, oy: top + off, cw: 8 * S, rh: H, screenOnly: true, y0: o.originY || 0, gh: o.originY != null ? height - o.originY : null });
 
   // Frames: one box per measure group (a pickup stays outside, leading into the first one), all the
   // same size, holding the icons, labels and beat bars.
@@ -852,7 +1018,7 @@ function buildScene(model, o, forScreen){
     let ps;
     if (o.guides === "all"){ ps = []; for (let p = maxP; p >= minP; p--) ps.push(p); }
     else ps = [...new Set(notes.map(n => n.p))].sort((a, b) => b - a);
-    const labs = labelsFor(model, ps);
+    const labs = labelsFor(model, model.labelPitches ? [...new Set(ps.concat(model.labelPitches))] : ps);
     ps.forEach(p => {
       items.push({ t: "line", x1: left - 4 * S, y1: yOf(p) + off, x2: left + W + 4 * S, y2: yOf(p) + off, c: "#DDE2E7", w: Math.max(1, S), cap: "butt" });
       items.push({ t: "text", x: left - 10 * S, y: yOf(p) + off + labelSize * 0.36, s: labs.get(p), size: labelSize, anchor: "end", c: "#5F6770", weight: 700 });
@@ -981,12 +1147,45 @@ function buildScene(model, o, forScreen){
     }
   };
 
+  // "Joined icons": a band across the space between joined sounds, so they read as one.
+  const drawJoins = () => {
+    if (!joinMode) return;
+    const op = Math.max(0, Math.min(1, o.iconOpacity / 100)), bt0 = iconH * 0.42, sw = Math.max(1, 2 * S);
+    const pairs = [];
+    for (const g of slurGroups){
+      for (let i = 0; i < g.length - 1; i++) pairs.push([xR(g[i]) - 1, yOf(g[i].p), xL(g[i + 1]) + 1, yOf(g[i + 1].p)]);
+      // A slur carried over from the line before, or on to the next, gets a short open band.
+      if (g.openStart) pairs.push([xL(g[0]) - G, yOf(g[0].p), xL(g[0]) + 1, yOf(g[0].p)]);
+      if (g.openEnd){ const n = g[g.length - 1]; pairs.push([xR(n) - 1, yOf(n.p), xR(n) + G, yOf(n.p)]); }
+    }
+    for (const [x1, ya, x2, yb] of pairs){
+      // A slanted band keeps about the same thickness as a level one (up to the icon's height).
+      const bt = Math.min(iconH, bt0 * Math.hypot(x2 - x1, yb - ya) / (x2 - x1));
+      if (o.iconOutline){
+        items.push({ t: "line", x1, y1: ya - bt / 2, x2, y2: yb - bt / 2, c: "#212121", w: sw / 2, cap: "butt" });
+        items.push({ t: "line", x1, y1: ya + bt / 2, x2, y2: yb + bt / 2, c: "#212121", w: sw / 2, cap: "butt" });
+      } else items.push({ t: "shape", d: `M${r2(x1)} ${r2(ya - bt / 2)} L${r2(x2)} ${r2(yb - bt / 2)} L${r2(x2)} ${r2(yb + bt / 2)} L${r2(x1)} ${r2(ya + bt / 2)} Z`, fill: "#4A5158", op });
+    }
+  };
+
   // Behind the icons when it follows their bottom edges; on top when it runs through the middle.
-  if (anchorBottom){ drawLine(); drawIcons(); } else { drawIcons(); drawLine(); }
+  if (anchorBottom){ drawLine(); drawJoins(); drawIcons(); } else { drawJoins(); drawIcons(); drawLine(); }
+
+  // Arcs: a slur shape, thickest in the middle and tapering to its ends.
+  for (const ar of arcs){
+    const P = p => r2(p[0]) + " " + r2(top + p[1]);
+    const d = `M${P([ar.x0, ar.y0])} C${P(ar.outer[0])} ${P(ar.outer[1])} ${P([ar.x3, ar.y3])} C${P(ar.inner[1])} ${P(ar.inner[0])} ${P([ar.x0, ar.y0])} Z`;
+    items.push({ t: "shape", d, fill: "#1D2125", stroke: "#1D2125", sw: Math.max(1, 0.9 * S) });
+  }
 
   if (namesOn){
-    const labs = labelsFor(model, [...new Set(model.sounds.map(n => n.p))]);
-    model.sounds.forEach(n => items.push({ t: "text", x: xL(n), y: followSpace ? yOf(n.p) + halfDown + nameSize * 0.8 + 2 * S : yOf(n.p) - half - 3 * S, s: labs.get(n.p), size: nameSize, anchor: "start", c: "#3F464D", weight: 700, halo }));
+    const labs = nameLabs;
+    model.sounds.forEach(n => {
+      const s = labs.get(n.p), xb = xL(n) + nameW(s);
+      const y = followSpace ? top + clearBelow(yOf(n.p) + halfDown + nameSize * 0.8 + 2 * S - top, xL(n), xb, nameGapDn)
+                            : top + clearAbove(yOf(n.p) - half - 3 * S - top, xL(n), xb, nameGapUp);
+      items.push({ t: "text", x: xL(n), y, s, size: nameSize, anchor: "start", c: "#3F464D", weight: 700, halo });
+    });
   }
 
   if (follow){
@@ -995,7 +1194,7 @@ function buildScene(model, o, forScreen){
       // Starts at its icon's left edge; a held syllable also clears any of its own notes the word reaches over.
       const x0 = xL(first), reach = x0 + Math.max(1, sy.text.length) * lyricFont(o).w * lyrSize;
       const hi = Math.max(...model.sounds.slice(sy.first, sy.last + 1).filter(n => xL(n) < reach).map(n => n.p));
-      items.push({ t: "text", x: x0, y: yOf(hi) - half - 3 * S, s: sy.text, size: lyrSize, anchor: "start", c: "#1D2125", weight: 400, halo, font: lyricFont(o).stack });
+      items.push({ t: "text", x: x0, y: top + clearAbove(yOf(hi) - half - 3 * S - top, x0, reach, lyrGap), s: sy.text, size: lyrSize, anchor: "start", c: "#1D2125", weight: 400, halo, font: lyricFont(o).stack });
     });
   } else if (lyrY !== null){
     model.syl.forEach(sy => {
@@ -1020,9 +1219,82 @@ function buildScene(model, o, forScreen){
   }
 
   const play = { left, U, xAt: xStart, w: Math.max(3, 4 * S), y1: top - half, y2: playBottom };
+  play.at = t => ({ x: xStart(t), y: play.y1, h: play.y2 - play.y1, row: 0 });
   if (forScreen) items.push({ t: "playhead", y: play.y1, w: play.w, h: play.y2 - play.y1, screenOnly: true });
 
-  return { w: Math.ceil(width), h: Math.ceil(height + growTop + growBottom), dy: Math.round(growTop), items, play };
+  return { w: Math.ceil(width), h: Math.ceil(height + growTop + growBottom), dy: Math.round(growTop), items, play, lyrFit };
+}
+
+// ---- Lines: a long song wraps onto several lines of icons ----
+// Break points (in shorts) come from "Measures per line" (counted from the first downbeat) and from
+// // in the rhythm. A break that would cut through a note moves to that note's start.
+function lineBreaks(model, o){
+  const want = (model.breaks || []).slice();
+  const m = parseMeter(o.meter), per = Number(o.lineMeasures) || 0;
+  if (m && per > 0){
+    const ms = m.n * 8 / m.d, pk = Math.max(0, Number(o.pickup) || 0) % ms;
+    for (let t = pk + per * ms; t < model.total - 1e-9; t += per * ms) want.push(t);
+  }
+  const out = new Set();
+  for (let t of want){
+    const n = model.notes.find(n => n.t0 < t - 1e-9 && n.t1 > t + 1e-9);
+    if (n) t = n.t0;
+    if (t > 1e-9 && t < model.total - 1e-9) out.add(Math.round(t * 1000) / 1000);
+  }
+  return [...out].sort((a, b) => a - b);
+}
+// One line's notes, renumbered from 0, with its own syllables and any slur carried in or out.
+function lineModel(model, a, b, links){
+  const notes = model.notes.filter(n => n.t0 >= a - 1e-9 && n.t0 < b - 1e-9).map(n => Object.assign({}, n, { t0: n.t0 - a, t1: n.t1 - a }));
+  const sounds = notes.filter(n => !n.rest);
+  const k0 = model.sounds.findIndex(s => s.t0 >= a - 1e-9), k1 = k0 + sounds.length - 1;
+  const syl = sounds.length ? model.syl.filter(sy => sy.first >= k0 && sy.first <= k1).map(sy => Object.assign({}, sy, { first: sy.first - k0, last: Math.min(sy.last, k1) - k0 })) : [];
+  return Object.assign({}, model, {
+    notes, sounds, syl, total: b - a, breaks: [],
+    contIn: sounds.length > 0 && k0 > 0 && !!links[k0 - 1],
+    contOut: sounds.length > 0 && k1 < model.sounds.length - 1 && !!links[k1],
+    labelPitches: [...new Set(model.sounds.map(n => n.p))],
+  });
+}
+// The whole drawing: one line, or lines stacked top to bottom. Every line uses the song's whole
+// pitch range and the same room for words and slurs, so heights match from line to line.
+function buildPage(model, o, forScreen){
+  const breaks = lineBreaks(model, o);
+  if (!breaks.length) return Object.assign(buildScene(model, o, forScreen), { lines: 1 });
+  const S = o.size, padY = 18 * S, gap = Math.max(0, Number(o.lineGap) || 0) * S;
+  const m = parseMeter(o.meter), ms = m ? m.n * 8 / m.d : 0, pk = Math.max(0, Number(o.pickup) || 0);
+  const links = slurLinks(model, o), cuts = [0, ...breaks, model.total];
+  const base = Object.assign({}, o, {
+    lockLayout: true, lyricsOn: o.lyricsOn !== false && model.syl.length > 0, names: !!o.names && model.hasPitch,
+    slurRoom: o.showSlurs !== false && links.some(Boolean),
+  });
+  const lines = [];
+  for (let i = 0; i < cuts.length - 1; i++){
+    const a = cuts[i], b = cuts[i + 1];
+    lines.push({ a, b, lm: lineModel(model, a, b, links), lo: Object.assign({}, base, { pickup: ms ? String(((pk - a) % ms + ms) % ms) : "" }) });
+  }
+  let fit = Infinity;
+  for (const L of lines){ const f = buildScene(L.lm, L.lo, forScreen).lyrFit; if (f != null) fit = Math.min(fit, f); }
+  const items = [], rows = [];
+  let y = 0, w = 0, h = 0;
+  for (const L of lines){
+    if (fit < Infinity) L.lo.lyrFit = fit;
+    const pre = buildScene(L.lm, L.lo, forScreen);
+    const sc = buildScene(L.lm, Object.assign({}, L.lo, { originY: y + pre.dy }), forScreen);
+    for (const it of sc.items) if (it.t !== "playhead") items.push(it);
+    rows.push({ a: L.a, b: L.b, play: sc.play });
+    w = Math.max(w, sc.w); h = y + pre.h;
+    y += pre.h - padY + gap;   // the next line's top margin overlaps this one's bottom margin
+  }
+  const play = { w: rows[0].play.w, xAt: t => rows[0].play.xAt(t) };
+  play.at = t => {
+    let r = rows.length - 1;
+    while (r > 0 && t < rows[r].a - 1e-9) r--;
+    const p = rows[r].play;
+    return { x: p.xAt(Math.max(0, t - rows[r].a)), y: p.y1, h: p.y2 - p.y1, row: r };
+  };
+  if (forScreen) items.push({ t: "playhead", y: rows[0].play.y1, w: play.w, h: rows[0].play.y2 - rows[0].play.y1, screenOnly: true });
+  return { w: Math.ceil(w), h: Math.ceil(h), dy: 0, items, play, lines: rows.length };
 }
 
 function r3(n){ return Math.round(n * 1000) / 1000; }
@@ -1040,12 +1312,15 @@ function sceneToSVG(sc, opt){
   o.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${sc.w}" height="${sc.h}" viewBox="0 0 ${sc.w} ${sc.h}" font-family="${escXML(FONT_STACK)}"${opt.attrs || ""}>`);
   if (!opt.transparent) o.push(`<rect width="${sc.w}" height="${sc.h}" fill="#FFFFFF"/>`);
   if (sc.dy) o.push(`<g transform="translate(0 ${sc.dy})">`);
+  let gridN = 0;
   for (const it of drawOrder(sc.items)){
     if (it.screenOnly && !opt.screen) continue;
     switch (it.t){
-      case "grid":
-        o.push(`<defs><pattern id="rim-grid" width="${r2(it.cw)}" height="${r2(it.rh)}" patternUnits="userSpaceOnUse" patternTransform="translate(${r2(it.ox)} ${r2(it.oy)})"><path d="M0 0 H${r2(it.cw)} M0 0 V${r2(it.rh)}" fill="none" stroke="#E6EAEE" stroke-width="1"/></pattern></defs><rect width="${sc.w}" height="${sc.h}" fill="url(#rim-grid)"/>`);
+      case "grid": {
+        const gid = "rim-grid-" + (gridN++);
+        o.push(`<defs><pattern id="${gid}" width="${r2(it.cw)}" height="${r2(it.rh)}" patternUnits="userSpaceOnUse" patternTransform="translate(${r2(it.ox)} ${r2(it.oy)})"><path d="M0 0 H${r2(it.cw)} M0 0 V${r2(it.rh)}" fill="none" stroke="#E6EAEE" stroke-width="1"/></pattern></defs><rect y="${r2(it.y0 || 0)}" width="${sc.w}" height="${r2(it.gh != null ? it.gh : sc.h)}" fill="url(#${gid})"/>`);
         break;
+      }
       case "line":
         o.push(`<line x1="${r2(it.x1)}" y1="${r2(it.y1)}" x2="${r2(it.x2)}" y2="${r2(it.y2)}" stroke="${it.c}" stroke-width="${r2(it.w)}" stroke-linecap="${it.cap || "butt"}"${dashAttrs(it)}/>`);
         break;
@@ -1054,6 +1329,9 @@ function sceneToSVG(sc, opt){
         break;
       case "rect":
         o.push(`<rect x="${r2(it.x)}" y="${r2(it.y)}" width="${r2(it.w)}" height="${r2(it.h)}" fill="${it.fill}"${it.op != null && it.fill !== "none" ? ` fill-opacity="${r2(it.op)}"` : ""}${it.stroke ? ` stroke="${it.stroke}" stroke-width="${r2(it.sw)}"${it.sop != null ? ` stroke-opacity="${r2(it.sop)}"` : ""}${it.dash ? ` stroke-dasharray="${it.dash.map(r2).join(" ")}"` : ""}` : ""}/>`);
+        break;
+      case "shape":
+        o.push(`<path d="${it.d}" fill="${it.fill}"${it.op != null ? ` fill-opacity="${r2(it.op)}"` : ""}${it.stroke ? ` stroke="${it.stroke}" stroke-width="${r2(it.sw)}" stroke-linejoin="round"` : ""}/>`);
         break;
       case "circle":
         o.push(`<circle cx="${r2(it.cx)}" cy="${r2(it.cy)}" r="${r2(it.r)}" fill="${it.fill}"/>`);
@@ -1096,6 +1374,12 @@ function drawCanvas(sc, ratio, transparent){
         if (it.fill !== "none"){ ctx.globalAlpha = it.op != null ? it.op : 1; ctx.fillStyle = it.fill; ctx.fillRect(it.x, it.y, it.w, it.h); }
         if (it.stroke){ ctx.globalAlpha = it.sop != null ? it.sop : 1; ctx.strokeStyle = it.stroke; ctx.lineWidth = it.sw; ctx.setLineDash(it.dash || []); ctx.strokeRect(it.x, it.y, it.w, it.h); }
         break;
+      case "shape": {
+        const p = new Path2D(it.d);
+        ctx.globalAlpha = it.op != null ? it.op : 1; ctx.fillStyle = it.fill; ctx.fill(p);
+        if (it.stroke){ ctx.globalAlpha = 1; ctx.strokeStyle = it.stroke; ctx.lineWidth = it.sw; ctx.lineJoin = "round"; ctx.stroke(p); }
+        break;
+      }
       case "circle":
         ctx.beginPath(); ctx.arc(it.cx, it.cy, it.r, 0, Math.PI * 2); ctx.fillStyle = it.fill; ctx.fill(); break;
       case "halo":
@@ -1173,6 +1457,7 @@ const MELODY_DEFAULTS = {
 const LOOK_DEFAULTS = {
   showIcons: true, iconOpacity: 100, iconColor: "dur", iconInk: "#212121", restStyle: "outline", iconOutline: false,
   showLine: false, shape: "steps", conn: "thin", lineColor: "one", lineInk: "#212121", thick: 6, lineRests: "gap", lineAnchor: "bottom", lineStyle: "solid",
+  showSlurs: true, slurStyle: "above", slurHeld: true, lineMeasures: "0", lineGap: 16,
   pitchShow: "on", size: 2, vstretch: 1, lyricsPos: "follow", showLyrics: true, lyricScale: 100, lyricFont: "lexend", groupMeasures: "1", dividers: false, frames: false, macroStrong: "#6B6B6B", macroWeak: "#C8C8C8", microStrong: "#6B6B6B", microWeak: "#C8C8C8", frameWidth: 2, framePad: 12, dividerReach: 100, groupGap: 0, rangeMode: "fit", rangeLow: "", rangeHigh: "", guides: "off", names: false, grid: false, transparent: false
 };
 const PLAY_DEFAULTS = { tempo: 96, loop: false, follow: true, countBeats: "0", instrument: "piano" };
@@ -1215,6 +1500,7 @@ function syncOutputs(){
   $("tempoOut").textContent = `${st.tempo} bpm`;
   for (const el of document.querySelectorAll(".icon-opt")) el.hidden = !st.showIcons;
   for (const el of document.querySelectorAll(".line-opt")) el.hidden = !st.showLine;
+  for (const el of document.querySelectorAll(".slur-opt")) el.hidden = !st.showSlurs;
   $("connRow").hidden = !st.showLine || st.shape !== "steps";
   $("anchorRow").hidden = !st.showLine || !st.showIcons;
   $("lyrPos").hidden = !st.showLyrics;
@@ -1228,6 +1514,8 @@ function syncOutputs(){
   $("frameWidthOut").textContent = st.frameWidth + " px";
   $("dividerReachOut").textContent = st.dividerReach === 100 ? "100% (flush)" : st.dividerReach + "%";
   $("groupGapOut").textContent = st.groupGap ? "+" + st.groupGap + " px" : "none";
+  $("lineGapOut").textContent = st.lineGap ? "+" + st.lineGap + " px" : "none";
+  $("lineGapRow").hidden = !(Number(st.lineMeasures) > 0 || /\//.test(st.rhythm || ""));
   $("lyricScaleOut").textContent = st.lyricScale === 100 ? "100% (fits)" : st.lyricScale + "%";
   $("iconInk").hidden = st.iconColor !== "one";
   $("iconKey").hidden = st.iconColor !== "dur";
@@ -1249,6 +1537,7 @@ function render(){
   if (String(st.pickup || "").trim() && !(Number(st.pickup) >= 0)) msgs.push({ level: "warn", text: "Pickup: type a number of shorts, such as 1 or 2." });
   else if (pk > 0 && !pm) msgs.push({ level: "warn", text: "A pickup needs a meter, so the downbeat after it can be found." });
   else if (pk > 0 && pm && pk >= pm.n * 8 / pm.d) msgs.push({ level: "warn", text: "Pickup: that\u2019s a whole measure or more. Type the length of just the notes before the first downbeat." });
+  if (Number(st.lineMeasures) > 0 && !parseMeter(st.meter)) msgs.push({ level: "warn", text: "Measures per line needs a meter. Type one under Pattern, such as 4/4, or type // in Rhythm where each new line should start." });
   if ((st.dividers || st.frames) && !parseMeter(st.meter)) msgs.push({ level: "warn", text: "Divider lines and frames need a meter. Type one under Pattern, such as 2/4." });
   if (st.rangeMode === "fixed" && drawModel.hasPitch && drawModel.notes.length){
     let lo = rangePitch(st.rangeLow), hi = rangePitch(st.rangeHigh);
@@ -1269,12 +1558,12 @@ function render(){
     setExportEnabled(false);
     return;
   }
-  lastScene = buildScene(drawModel, opts(), true);
+  lastScene = buildPage(drawModel, opts(), true);
   const rangeBit = st.pitchShow === "off" ? "rhythm only" : rangeText(model);
   const label = `Rhythm icons for ${model.sounds.length} sounds${rangeBit ? ", " + rangeBit : ""}`;
   art.innerHTML = sceneToSVG(lastScene, { screen: true, transparent: false, attrs: ` role="img" aria-label="${escXML(label)}"` });
   const rests = model.notes.length - model.sounds.length;
-  statusEl.textContent = `${model.sounds.length} ${model.sounds.length === 1 ? "sound" : "sounds"}${rests ? ` and ${rests} ${rests === 1 ? "rest" : "rests"}` : ""} over ${r2(model.total)} ${model.total === 1 ? "short" : "shorts"}${rangeBit ? ", " + rangeBit : ""}. PNGs save at ${lastScene.w * 2} \u00D7 ${lastScene.h * 2} px.`;
+  statusEl.textContent = `${model.sounds.length} ${model.sounds.length === 1 ? "sound" : "sounds"}${rests ? ` and ${rests} ${rests === 1 ? "rest" : "rests"}` : ""} over ${r2(model.total)} ${model.total === 1 ? "short" : "shorts"}${rangeBit ? ", " + rangeBit : ""}${lastScene.lines > 1 ? `, on ${lastScene.lines} lines` : ""}. PNGs save at ${Math.round(lastScene.w * pngRatio(lastScene))} \u00D7 ${Math.round(lastScene.h * pngRatio(lastScene))} px.`;
   setExportEnabled(true);
 }
 
@@ -1523,7 +1812,7 @@ const downloadsP = useCap("downloads");
 const mcpP = useCap("mcp");
 
 // ---- Playback ----
-const player = { ctx: null, master: null, playing: false, nodes: [], start: 0, sps: 0, passDur: 0, scheduled: -1, endPass: null, raf: 0, notes: [], pitched: true, waves: null, noise: null };
+const player = { ctx: null, master: null, playing: false, nodes: [], start: 0, sps: 0, passDur: 0, scheduled: -1, endPass: null, raf: 0, events: [], pitched: true, waves: null, noise: null };
 function audio(){
   if (!player.ctx){
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -1579,21 +1868,21 @@ function noiseBurst(when, peak, tau, dest, filterType, filterFreq, q){
   s.start(when); s.stop(when + Math.min(1, tau * 8 + 0.02)); track(s);
 }
 // Struck bars and chimes: partials are [ratio, level, decay]. The sound is damped when the note ends.
-function bar(when, dur, f, partials, click, dampTau){
-  const end = when + Math.max(0.06, dur * 0.95);
+function bar(when, dur, f, partials, click, dampTau, x){
+  const end = when + (x && x.legato ? dur + 0.03 : Math.max(0.06, dur * 0.95));
   const ring = Math.max(...partials.map(p => p[2])) * 7;
   const stopAt = Math.min(end + dampTau * 7, when + ring) + 0.05;
   for (const [ratio, peak, tau] of partials) partial(when, stopAt, f * ratio, peak, tau, player.master, "sine", [end, dampTau]);
   if (click) noiseBurst(when, click[0], click[1], player.master, "bandpass", click[2], 1.5);
 }
-function pianoNote(when, dur, m){
+function pianoNote(when, dur, m, x){
   const ctx = player.ctx, f = hz(m);
   const o = ctx.createOscillator(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
   o.setPeriodicWave(waves().piano); o.frequency.value = f;
   lp.type = "lowpass"; lp.Q.value = 0.5;
   lp.frequency.setValueAtTime(Math.min(f * 10, 14000), when);
   lp.frequency.setTargetAtTime(Math.max(f * 2.5, 500), when, 0.4);
-  const end = when + Math.max(0.08, dur * 0.95);
+  const end = when + (x && x.legato ? dur + 0.03 : Math.max(0.08, dur * 0.95));
   const tau = 0.9 * Math.pow(0.5, (m - 60) / 24);
   g.gain.setValueAtTime(0, when);
   g.gain.linearRampToValueAtTime(0.4, when + 0.004);
@@ -1619,20 +1908,25 @@ function vibrato(target, when, end, rate, depth){
   lfo.connect(lg); lg.connect(target);
   lfo.start(when); lfo.stop(end + 0.03); track(lfo);
 }
-function recorderNote(when, dur, m){
+// A held sound's pitch. steps ([time, midi] pairs) are the new pitches of slurred notes inside one breath.
+function glideTo(param, when, f, steps, tau){
+  param.setValueAtTime(f, when);
+  if (steps) for (let i = 1; i < steps.length; i++) param.setTargetAtTime(hz(steps[i][1]), Math.max(steps[i - 1][0], steps[i][0] - tau), tau);
+}
+function recorderNote(when, dur, m, x){
   const ctx = player.ctx, f = hz(m), o = ctx.createOscillator(), g = ctx.createGain();
   const end = when + Math.max(0.07, dur * 0.9);
-  o.setPeriodicWave(waves().recorder); o.frequency.value = f;
+  o.setPeriodicWave(waves().recorder); glideTo(o.frequency, when, f, x && x.steps, 0.006);
   vibrato(o.frequency, when + 0.2, end, 5, f * 0.006);
   heldEnvelope(g, when, end, 0.3, 0.03, 0.03);
   o.connect(g); g.connect(player.master);
   o.start(when); o.stop(end + 0.03); track(o);
   noiseBurst(when, 0.07, 0.02, player.master, "bandpass", f * 2, 1);
 }
-function voiceNote(when, dur, m){
+function voiceNote(when, dur, m, x){
   const ctx = player.ctx, f = hz(m), o = ctx.createOscillator(), pk = ctx.createBiquadFilter(), lp = ctx.createBiquadFilter(), g = ctx.createGain();
   const end = when + Math.max(0.08, dur * 0.92);
-  o.type = "sawtooth"; o.frequency.value = f;
+  o.type = "sawtooth"; glideTo(o.frequency, when, f, x && x.steps, 0.03);
   pk.type = "peaking"; pk.frequency.value = 350; pk.Q.value = 2; pk.gain.value = 6;
   lp.type = "lowpass"; lp.frequency.value = Math.max(f * 1.6, 550); lp.Q.value = 0.8;
   vibrato(o.frequency, when + 0.25, end, 5.5, f * 0.005);
@@ -1640,10 +1934,10 @@ function voiceNote(when, dur, m){
   o.connect(pk); pk.connect(lp); lp.connect(g); g.connect(player.master);
   o.start(when); o.stop(end + 0.03); track(o);
 }
-function toneNote(when, dur, m){
+function toneNote(when, dur, m, x){
   const ctx = player.ctx, o = ctx.createOscillator(), g = ctx.createGain();
   const end = when + Math.max(0.07, dur * 0.88);
-  o.type = "triangle"; o.frequency.value = hz(m);
+  o.type = "triangle"; glideTo(o.frequency, when, hz(m), x && x.steps, 0.004);
   heldEnvelope(g, when, end, 0.3, 0.01, 0.03);
   o.connect(g); g.connect(player.master);
   o.start(when); o.stop(end + 0.03); track(o);
@@ -1695,15 +1989,17 @@ function shakerNote(when, dur){
   heldNoise(when, dur, [["highpass", 5000, 0.7, 1], ["bandpass", 8000, 1, 0.5]], 0.6, t => (t < 0.035 ? 1 - (t / 0.035) * 0.62 : 0.38) * (1 + 0.12 * Math.sin(t * 2 * Math.PI * 11)));
 }
 // Barred instruments sound at Orff alto pitch (glockenspiel an octave up); recorder sounds an octave up.
+// glide: the instrument can change pitch inside one held sound, so a slur is one breath.
+const upOctave = x => x && x.steps ? Object.assign({}, x, { steps: x.steps.map(([t, mm]) => [t, mm + 12]) }) : x;
 const INSTRUMENTS = {
-  piano:        { play: (w, d, m) => pianoNote(w, d, m) },
-  xylophone:    { play: (w, d, m) => bar(w, d, hz(m), [[1, 0.5, 0.13], [3, 0.14, 0.04], [6.3, 0.05, 0.015]], [0.25, 0.012, 3000], 0.03) },
-  glockenspiel: { play: (w, d, m) => bar(w, d, hz(m + 12), [[1, 0.32, 0.55], [2.76, 0.12, 0.14], [5.4, 0.06, 0.05]], [0.12, 0.006, 6000], 0.12) },
-  metallophone: { play: (w, d, m) => bar(w, d, hz(m), [[1, 0.34, 0.9], [4, 0.04, 0.18], [2, 0.025, 0.3]], [0.05, 0.01, 2000], 0.15) },
-  choirchimes:  { play: (w, d, m) => bar(w, d, hz(m), [[1, 0.27, 1.3], [1.003, 0.08, 1.3], [3, 0.065, 0.35], [2, 0.025, 0.5]], null, 0.22) },
-  recorder:     { play: (w, d, m) => recorderNote(w, d, m + 12) },
-  voice:        { play: (w, d, m) => voiceNote(w, d, m) },
-  tone:         { play: (w, d, m) => toneNote(w, d, m) },
+  piano:        { play: (w, d, m, x) => pianoNote(w, d, m, x) },
+  xylophone:    { play: (w, d, m, x) => bar(w, d, hz(m), [[1, 0.5, 0.13], [3, 0.14, 0.04], [6.3, 0.05, 0.015]], [0.25, 0.012, 3000], 0.03, x) },
+  glockenspiel: { play: (w, d, m, x) => bar(w, d, hz(m + 12), [[1, 0.32, 0.55], [2.76, 0.12, 0.14], [5.4, 0.06, 0.05]], [0.12, 0.006, 6000], 0.12, x) },
+  metallophone: { play: (w, d, m, x) => bar(w, d, hz(m), [[1, 0.34, 0.9], [4, 0.04, 0.18], [2, 0.025, 0.3]], [0.05, 0.01, 2000], 0.15, x) },
+  choirchimes:  { play: (w, d, m, x) => bar(w, d, hz(m), [[1, 0.27, 1.3], [1.003, 0.08, 1.3], [3, 0.065, 0.35], [2, 0.025, 0.5]], null, 0.22, x) },
+  recorder:     { glide: true, play: (w, d, m, x) => recorderNote(w, d, m + 12, upOctave(x)) },
+  voice:        { glide: true, play: (w, d, m, x) => voiceNote(w, d, m, x) },
+  tone:         { glide: true, play: (w, d, m, x) => toneNote(w, d, m, x) },
   woodblock:    { unpitched: true, play: w => woodblock(w) },
   drum:         { unpitched: true, play: w => handDrum(w) },
   guiro:        { unpitched: true, play: (w, d) => guiroNote(w, d) },
@@ -1717,11 +2013,27 @@ function click(when, accent){
   g.gain.setValueAtTime(0.35, when); g.gain.exponentialRampToValueAtTime(0.001, when + 0.06);
   o.connect(g); g.connect(player.master); o.start(when); o.stop(when + 0.07); track(o);
 }
+// Joined notes play without a new attack: on one pitch they merge into one held sound (a tie);
+// a new pitch is a step inside the same breath (held instruments) or a legato strike (struck ones).
+function playEvents(model, o, pitched){
+  const links = slurLinks(model, o), ev = [];
+  model.sounds.forEach((n, k) => {
+    const m = pitched ? n.p : 67, cur = ev[ev.length - 1];
+    if (k > 0 && links[k - 1] && cur){
+      const s = cur.segs[cur.segs.length - 1];
+      if (s.m === m) s.dur += n.dur; else cur.segs.push({ t0: n.t0, dur: n.dur, m });
+    } else ev.push({ segs: [{ t0: n.t0, dur: n.dur, m }] });
+  });
+  return ev;
+}
 function schedulePass(k){
-  const base = player.start + k * player.passDur, inst = instrument();
-  for (const n of player.notes){
-    if (n.rest) continue;
-    inst.play(base + n.t0 * player.sps, n.dur * player.sps, player.pitched ? n.p : 67);
+  const base = player.start + k * player.passDur, inst = instrument(), sps = player.sps;
+  for (const ev of player.events){
+    const segs = ev.segs, at = s => base + s.t0 * sps;
+    if (segs.length > 1 && inst.glide){
+      const last = segs[segs.length - 1];
+      inst.play(at(segs[0]), (last.t0 + last.dur - segs[0].t0) * sps, segs[0].m, { steps: segs.map(s => [at(s), s.m]) });
+    } else segs.forEach((s, i) => inst.play(at(s), s.dur * sps, s.m, { legato: i < segs.length - 1 }));
   }
   player.scheduled = k;
 }
@@ -1744,8 +2056,8 @@ function startPlayback(){
   const m = parseMeter(st.meter);
   const beat = m ? m.L : 2;
   player.sps = 60 / st.tempo / beat;
-  player.notes = model.notes.map(n => ({ t0: n.t0, dur: n.dur, rest: n.rest, p: n.p }));
   player.pitched = st.pitchShow !== "off" && model.hasPitch;
+  player.events = playEvents(model, opts(), player.pitched);
   player.passDur = model.total * player.sps;
   // Count-in beats use the meter's big beat; "m1"/"m2" mean one or two measures (4 beats each with no meter).
   const per = m ? m.per : 4, cb = String(st.countBeats || "0");
@@ -1757,7 +2069,7 @@ function startPlayback(){
   const t0 = ctx.currentTime + 0.12;
   for (let i = 0; i < clicks; i++) click(t0 + i * beat * player.sps, i === 0 || (countBeats - i) % per === 0);
   player.start = t0 + countShorts * player.sps;
-  player.scheduled = -1; player.endPass = null;
+  player.scheduled = -1; player.endPass = null; player.row = 0;
   schedulePass(0);
   player.playing = true; setPlayButtons();
   if (st.follow && !document.body.classList.contains("present")){
@@ -1770,6 +2082,11 @@ function startPlayback(){
 }
 // Follow: keep the playhead about a third of the way across the drawing's window, so the notes
 // coming up stay in view. (Present mode already fits the whole drawing on screen.)
+function showRow(ph){
+  if (document.body.classList.contains("present")) return;
+  const r = ph.getBoundingClientRect();
+  if (r.top < 0 || r.bottom > window.innerHeight) ph.scrollIntoView({ block: "nearest", inline: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+}
 function followPlayhead(ph){
   if (document.body.classList.contains("present")) return;
   const stage = $("stage");
@@ -1794,9 +2111,12 @@ function tick(){
     }
     const t = (el - k * player.passDur) / player.sps;
     if (ph && lastScene){
-      const g = lastScene.play;
-      ph.setAttribute("x", r2((g.xAt ? g.xAt(t) : g.left + t * g.U) - g.w / 2));
+      const g = lastScene.play, p = g.at(t);
+      ph.setAttribute("x", r2(p.x - g.w / 2));
+      ph.setAttribute("y", r2(p.y)); ph.setAttribute("height", r2(p.h));
       ph.setAttribute("visibility", "visible");
+      // On a new line of icons, bring that line into view if the page is scrolled away from it.
+      if (p.row !== player.row){ player.row = p.row; if (st.follow && p.row > 0) showRow(ph); }
       if (st.follow) followPlayhead(ph);
     }
   }
@@ -1822,14 +2142,18 @@ function fileStem(){
   const slug = words.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
   return slug ? `icons-${slug}` : "rhythm-icons";
 }
-function exportScene(){ return buildScene(drawModel, opts(), false); }
+function exportScene(){ return buildPage(drawModel, opts(), false); }
 async function fontsReady(){
   const lyr = lyricFont(st).family;
   try { await Promise.all([document.fonts.load(`400 16px "Atkinson Hyperlegible"`), document.fonts.load(`700 16px "Atkinson Hyperlegible"`), document.fonts.load(`400 16px "${lyr}"`)]); } catch (e) {}
 }
+// PNGs save at twice the drawing's size, scaled down when a very long or tall drawing would be
+// bigger than browsers can make an image.
+function pngRatio(sc){ return Math.max(0.25, Math.min(2, 16384 / Math.max(sc.w, sc.h), Math.sqrt(120e6 / Math.max(1, sc.w * sc.h)))); }
 async function pngBlob(){
   await fontsReady();
-  const c = drawCanvas(exportScene(), 2, st.transparent);
+  const sc = exportScene();
+  const c = drawCanvas(sc, pngRatio(sc), st.transparent);
   return new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("png")), "image/png"));
 }
 function saveErrorText(e){
